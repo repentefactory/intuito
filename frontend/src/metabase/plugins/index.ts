@@ -128,5 +128,5 @@ export const PLUGIN_FEATURE_LEVEL_PERMISSIONS = {
   },
   dataColumns: [] as any,
   getDownloadWidgetMessageOverride: (_result: Dataset): string | null => null,
-  canDownloadQueryResults: (_result: Dataset): boolean => true,
+  canDownloadResults: (_result: Dataset): boolean => true,
 };
