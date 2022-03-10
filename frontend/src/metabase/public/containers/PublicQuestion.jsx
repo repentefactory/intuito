@@ -8,6 +8,7 @@ import LoadingAndErrorWrapper from "metabase/components/LoadingAndErrorWrapper";
 import ExplicitSize from "metabase/components/ExplicitSize";
 import EmbedFrame from "../components/EmbedFrame";
 import title from "metabase/hoc/Title";
+import { PLUGIN_FEATURE_LEVEL_PERMISSIONS } from "metabase/plugins";
 
 import {
   getParameterValuesBySlug,
@@ -179,7 +180,10 @@ export default class PublicQuestion extends Component {
     } = this.props;
     const { card, result, initialized, parameterValues } = this.state;
 
-    const actionButtons = result && (
+    const showDownloadResultsButton =
+      result && PLUGIN_FEATURE_LEVEL_PERMISSIONS.canDownloadResults(result);
+
+    const actionButtons = showDownloadResultsButton && (
       <QueryDownloadWidget
         className="m1 text-medium-hover"
         uuid={uuid}
