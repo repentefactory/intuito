@@ -13,7 +13,7 @@ import { DashboardHeaderButton } from "./DashboardHeader.styled";
 
 import ParametersPopover from "./ParametersPopover";
 import Popover from "metabase/components/Popover";
-import TippyPopoverWithTrigger from "metabase/components/Popover/TippyPopoverWithTrigger";
+import TippyPopoverWithTrigger from "metabase/components/PopoverWithTrigger/TippyPopoverWithTrigger";
 
 import cx from "classnames";
 
