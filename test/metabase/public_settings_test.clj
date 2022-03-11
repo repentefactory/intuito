@@ -212,3 +212,9 @@
         {{:address (public-settings/cloud-gateway-ips-url)}
          (constantly {:status 200 :body "{\"ip_addresses\": [\"127.0.0.1\"]}"})}
         (is (= nil (public-settings/cloud-gateway-ips)))))))
+
+(deftest application-favicon-url-test
+  (testing "application-favicon-url should trim slashes at the beginning of the URL (#10743)"
+    (mt/with-temporary-setting-values [application-favicon-url "/app/assets/amazing_toucan.png"]
+      (is (= "app/assets/amazing_toucan.png"
+             (public-settings/application-favicon-url))))))

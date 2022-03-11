@@ -281,7 +281,11 @@
   (deferred-tru "The url or image that you want to use as the favicon.")
   :visibility :public
   :type       :string
-  :default    "app/assets/img/favicon.ico")
+  :default    "app/assets/img/favicon.ico"
+  :getter     (fn []
+                ;; trim slashes at beginning of URL (#10743)
+                (when-let [s (setting/get-value-of-type :string :application-favicon-url)]
+                  (str/replace s #"^/" ""))))
 
 (defsetting enable-password-login
   (deferred-tru "Allow logging in by email and password.")
