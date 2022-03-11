@@ -336,6 +336,12 @@ export default class NativeQueryEditor extends Component {
     }
   }
 
+  _retriggerAutocomplete = _.debounce(() => {
+    if (this._editor.completer?.popup?.isOpen) {
+      this._editor.execCommand("startAutocomplete");
+    }
+  }, 700);
+
   onChange() {
     const { query } = this.props;
     if (this._editor && !this._localUpdate) {
@@ -347,6 +353,8 @@ export default class NativeQueryEditor extends Component {
           .update(this.props.setDatasetQuery);
       }
     }
+
+    this._retriggerAutocomplete();
   }
 
   toggleEditor = () => {
