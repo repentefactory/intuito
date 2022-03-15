@@ -27,7 +27,7 @@
      (some-> (env :metastore-dev-server-url)
              ;; remove trailing slashes
              (str/replace  #"/$" "")))
-   "https://store.metabase.com"))
+   "https://intuito-status.s3.eu-west-1.amazonaws.com"))
 
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
