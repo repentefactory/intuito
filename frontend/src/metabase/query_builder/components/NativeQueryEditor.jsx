@@ -40,6 +40,8 @@ import {
 
 import "./NativeQueryEditor.css";
 
+import memoize from "lodash.memoize";
+
 @ExplicitSize()
 @Snippets.loadList({ loadingAndErrorWrapper: false })
 @SnippetCollections.loadList({ loadingAndErrorWrapper: false })
@@ -267,11 +269,17 @@ export default class NativeQueryEditor extends Component {
       showLineNumbers: true,
     });
 
+    this._memoizedAutocompleteFn = null;
+
     aceLanguageTools.addCompleter({
       getCompletions: async (editor, session, pos, prefix, callback) => {
         try {
-          // HACK: call this.props.autocompleteResultsFn rather than caching the prop since it might change
-          const results = await this.props.autocompleteResultsFn(prefix);
+          if (!this._memoizedAutocompleteFn) {
+            this._memoizedAutocompleteFn = memoize(
+              this.props.autocompleteResultsFn,
+            );
+          }
+          const results = await this._memoizedAutocompleteFn(prefix);
           // transform results of the API call into what ACE expects
           const js_results = results.map(function(result) {
             return {
