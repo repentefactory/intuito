@@ -4,7 +4,7 @@
 
 FROM metabase/ci:circleci-java-11-clj-1.10.3.929-07-27-2021-node-browsers as builder
 
-ARG MB_EDITION=oss
+ARG MB_EDITION=ee
 
 WORKDIR /home/circleci
 
