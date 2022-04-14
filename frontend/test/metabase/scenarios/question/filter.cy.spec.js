@@ -364,7 +364,9 @@ describe("scenarios > question > filter", () => {
 
     enterCustomColumnDetails({ formula: "[" });
 
-    popover().findByText("Body");
+    popover()
+      .last()
+      .findByText("Body");
 
     cy.get("@formula").type("p");
 
@@ -526,20 +528,20 @@ describe("scenarios > question > filter", () => {
     // Via the GUI, create a filter with "include-current" option
     filter({ mode: "notebook" });
     cy.findByText("Created At").click({ force: true });
-    cy.get("input[type='text']").type("{selectall}{del}5");
     cy.contains("Include today").click();
-    cy.findByText("Add filter").click();
+    cy.button("Add filter").click();
 
     // Switch to custom expression
-    cy.findByText("Created At Previous 5 Days").click();
+    cy.findByText("Created At Previous 30 Days").click();
+
     popover().within(() => {
       cy.icon("chevronleft").click();
       cy.findByText("Custom Expression").click();
     });
-    cy.findByText("Done").click();
+    cy.button("Done").click();
 
     // Back to GUI and "Include today" should be still checked
-    cy.findByText("Created At Previous 5 Days").click();
+    cy.findByText("Created At Previous 30 Days").click();
     cy.findByLabelText("Include today").should("be.checked");
   });
 
@@ -795,6 +797,37 @@ describe("scenarios > question > filter", () => {
         .and("contain", "Count")
         .and("contain", "Average of Total");
     }
+  });
+
+  describe("currency filters", () => {
+    beforeEach(() => {
+      // set the currency on the Orders/Discount column to Euro
+      cy.visit("/admin/datamodel/database/1/table/2");
+      // this value isn't actually selected, it's just the default
+      cy.findByText("US Dollar").click();
+      cy.findByText("Euro").click();
+
+      openOrdersTable();
+    });
+
+    it("should show correct currency symbols in currency single field filter", () => {
+      cy.findByText("Discount (€)").click();
+      cy.findByText("Filter by this column").click();
+      cy.findByTestId("input-prefix").should("contain", "€");
+    });
+
+    it("should show correct currency symbols in currency between field filter", () => {
+      cy.findByText("Discount (€)").click();
+      cy.findByText("Filter by this column").click();
+      cy.findByText("Equal to").click();
+      cy.findByText("Between").click();
+
+      cy.findAllByTestId("input-prefix").then(els => {
+        expect(els).to.have.lengthOf(2);
+        expect(els[0].innerText).to.equal("€");
+        expect(els[1].innerText).to.equal("€");
+      });
+    });
   });
 
   describe("specific combination of filters can cause frontend reload or blank screen (metabase#16198)", () => {

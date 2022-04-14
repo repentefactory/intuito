@@ -1,4 +1,11 @@
-import { restore, visitQuestion, isEE, isOSS } from "__support__/e2e/cypress";
+import {
+  restore,
+  visitQuestion,
+  isEE,
+  isOSS,
+  visitDashboard,
+  visitIframe,
+} from "__support__/e2e/cypress";
 
 const embeddingPage = "/admin/settings/embedding_in_other_applications";
 const licenseUrl = "https://metabase.com/license/embedding";
@@ -84,10 +91,9 @@ describe("scenarios > embedding > smoke tests", () => {
     });
 
     it("should not let you embed the dashboard", () => {
-      cy.visit("/dashboard/1");
+      visitDashboard(1);
 
       cy.icon("share").click();
-      cy.findByText("Sharing and embedding").click();
 
       ensureEmbeddingIsDisabled();
     });
@@ -133,6 +139,8 @@ describe("scenarios > embedding > smoke tests", () => {
           cy.contains("Powered by Metabase").should("not.exist");
         }
 
+        cy.signInAsAdmin();
+
         cy.visit(embeddingPage);
         cy.wait("@currentlyEmbeddedObject");
 
@@ -157,6 +165,8 @@ describe("scenarios > embedding > smoke tests", () => {
         visitIframe();
         cy.findByText("Embedding is not enabled for this object.");
 
+        cy.signInAsAdmin();
+
         cy.visit(embeddingPage);
         cy.wait("@currentlyEmbeddedObject");
 
@@ -165,7 +175,7 @@ describe("scenarios > embedding > smoke tests", () => {
     });
   });
 
-  it.skip("should not offer to share or embed models (metabase#20815)", () => {
+  it("should not offer to share or embed models (metabase#20815)", () => {
     cy.intercept("POST", "/api/dataset").as("dataset");
 
     cy.request("PUT", "/api/card/1", { dataset: true });
@@ -214,13 +224,6 @@ function ensureEmbeddingIsDisabled() {
   );
 }
 
-function visitIframe() {
-  cy.document().then(doc => {
-    const iframe = doc.querySelector("iframe");
-    cy.visit(iframe.src);
-  });
-}
-
 function visitAndEnableSharing(object) {
   if (object === "question") {
     visitQuestion("1");
@@ -229,10 +232,9 @@ function visitAndEnableSharing(object) {
   }
 
   if (object === "dashboard") {
-    cy.visit("/dashboard/1");
+    visitDashboard(1);
 
     cy.icon("share").click();
-    cy.findByText("Sharing and embedding").click();
     cy.findByText(/Embed this (question|dashboard) in an application/).click();
   }
 }

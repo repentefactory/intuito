@@ -4,6 +4,8 @@ import {
   popover,
   sidebar,
   visitQuestion,
+  visitDashboard,
+  visitIframe,
 } from "__support__/e2e/cypress";
 
 import { SAMPLE_DB_ID } from "__support__/e2e/cypress_data";
@@ -544,7 +546,7 @@ describe("scenarios > visualizations > pivot tables", () => {
                 ],
               });
               cy.log("Open the dashboard");
-              cy.visit(`/dashboard/${DASHBOARD_ID}`);
+              visitDashboard(DASHBOARD_ID);
             });
           },
         );
@@ -625,9 +627,6 @@ describe("scenarios > visualizations > pivot tables", () => {
           cy.visit("collection/root");
           cy.findByText(test.subject).click();
           cy.icon("share").click();
-          if (test.case === "dashboard") {
-            cy.findByText("Sharing and embedding").click();
-          }
         });
 
         it("should display pivot table in a public link", () => {
@@ -656,13 +655,14 @@ describe("scenarios > visualizations > pivot tables", () => {
           cy.findByText(
             /Embed this (question|dashboard) in an application/,
           ).click();
+
           cy.findByText("Publish").click();
+
           // visit the iframe src directly to ensure it's not sing preview endpoints
-          cy.get("iframe").then($iframe => {
-            cy.visit($iframe[0].src);
-            cy.get(".EmbedFrame-header").contains(test.subject);
-            assertOnPivotFields();
-          });
+          visitIframe();
+
+          cy.get(".EmbedFrame-header").contains(test.subject);
+          assertOnPivotFields();
         });
       });
     });

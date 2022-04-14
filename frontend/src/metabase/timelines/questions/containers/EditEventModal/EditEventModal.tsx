@@ -1,12 +1,15 @@
 import { connect } from "react-redux";
+import { t } from "ttag";
 import _ from "underscore";
 import TimelineEvents from "metabase/entities/timeline-events";
-import { TimelineEvent } from "metabase-types/api";
+import { addUndo } from "metabase/redux/undo";
+import EditEventModal from "metabase/timelines/common/components/EditEventModal";
+import { Timeline, TimelineEvent } from "metabase-types/api";
 import { State } from "metabase-types/store";
-import EditEventModal from "../../components/EditEventModal";
 
-export interface EditEventModalProps {
+interface EditEventModalProps {
   eventId: number;
+  onClose?: () => void;
 }
 
 const timelineEventProps = {
@@ -14,9 +17,16 @@ const timelineEventProps = {
   entityAlias: "event",
 };
 
+const mapStateToProps = (state: State, { onClose }: EditEventModalProps) => ({
+  onSubmitSuccess: onClose,
+  onArchiveSuccess: onClose,
+  onCancel: onClose,
+});
+
 const mapDispatchToProps = (dispatch: any) => ({
-  onSubmit: async (event: TimelineEvent) => {
+  onSubmit: async (event: TimelineEvent, timeline?: Timeline) => {
     await dispatch(TimelineEvents.actions.update(event));
+    dispatch(addUndo({ message: t`Updated event` }));
   },
   onArchive: async (event: TimelineEvent) => {
     await dispatch(TimelineEvents.actions.setArchived(event, true));
@@ -25,5 +35,5 @@ const mapDispatchToProps = (dispatch: any) => ({
 
 export default _.compose(
   TimelineEvents.load(timelineEventProps),
-  connect(null, mapDispatchToProps),
+  connect(mapStateToProps, mapDispatchToProps),
 )(EditEventModal);

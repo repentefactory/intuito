@@ -1,5 +1,11 @@
 /* eslint-disable react/prop-types */
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
 import { t } from "ttag";
@@ -7,18 +13,26 @@ import _ from "underscore";
 
 import Bookmark from "metabase/entities/bookmarks";
 import Collections from "metabase/entities/collections";
+import Timelines from "metabase/entities/timelines";
+import { closeNavbar } from "metabase/redux/app";
 import { MetabaseApi } from "metabase/services";
 import { getMetadata } from "metabase/selectors/metadata";
-import { getUser, getUserIsAdmin } from "metabase/selectors/user";
+import {
+  getUser,
+  getUserIsAdmin,
+  canManageSubscriptions,
+} from "metabase/selectors/user";
 
 import { useForceUpdate } from "metabase/hooks/use-force-update";
 import { useOnMount } from "metabase/hooks/use-on-mount";
 import { useOnUnmount } from "metabase/hooks/use-on-unmount";
 import { usePrevious } from "metabase/hooks/use-previous";
+import { useLoadingTimer } from "metabase/hooks/use-loading-timer";
+import { useWebNotification } from "metabase/hooks/use-web-notification";
 
-import fitViewport from "metabase/hoc/FitViewPort";
 import title from "metabase/hoc/Title";
 import titleWithLoadingTime from "metabase/hoc/TitleWithLoadingTime";
+import favicon from "metabase/hoc/Favicon";
 
 import View from "../components/view/View";
 
@@ -63,9 +77,15 @@ import {
   getNativeEditorCursorOffset,
   getNativeEditorSelectedText,
   getIsBookmarked,
-  getTimelineVisibility,
-  getVisibleTimelines,
+  getVisibleTimelineIds,
   getVisibleTimelineEvents,
+  getSelectedTimelineEventIds,
+  getFilteredTimelines,
+  getTimeseriesXDomain,
+  getIsAnySidebarOpen,
+  getDocumentTitle,
+  getPageFavicon,
+  getIsTimeseries,
 } from "../selectors";
 import * as actions from "../actions";
 
@@ -82,9 +102,15 @@ function autocompleteResults(card, prefix) {
   return apiCall;
 }
 
+const timelineProps = {
+  query: { include: "events" },
+  loadingAndErrorWrapper: false,
+};
+
 const mapStateToProps = (state, props) => {
   return {
     user: getUser(state, props),
+    canManageSubscriptions: canManageSubscriptions(state, props),
     isAdmin: getUserIsAdmin(state, props),
     fromUrl: props.location.query.from,
 
@@ -109,9 +135,11 @@ const mapStateToProps = (state, props) => {
     query: getQuery(state),
     metadata: getMetadata(state),
 
-    timelines: getVisibleTimelines(state),
+    timelines: getFilteredTimelines(state),
     timelineEvents: getVisibleTimelineEvents(state),
-    timelineVisibility: getTimelineVisibility(state),
+    visibleTimelineIds: getVisibleTimelineIds(state),
+    selectedTimelineEventIds: getSelectedTimelineEventIds(state),
+    xDomain: getTimeseriesXDomain(state),
 
     result: getFirstQueryResult(state),
     results: getQueryResults(state),
@@ -121,6 +149,7 @@ const mapStateToProps = (state, props) => {
     // includes isShowingDataReference, isEditing, isRunning, etc
     // NOTE: should come before other selectors that override these like getIsPreviewing and getIsNativeEditorOpen
     ...state.qb.uiControls,
+    isAnySidebarOpen: getIsAnySidebarOpen(state),
 
     isBookmarked: getIsBookmarked(state, props),
     isDirty: getIsDirty(state),
@@ -131,6 +160,7 @@ const mapStateToProps = (state, props) => {
     isNativeEditorOpen: getIsNativeEditorOpen(state),
     isVisualized: getIsVisualized(state),
     isLiveResizable: getIsLiveResizable(state),
+    isTimeseries: getIsTimeseries(state),
 
     parameters: getParameters(state),
     databaseFields: getDatabaseFields(state),
@@ -154,24 +184,29 @@ const mapStateToProps = (state, props) => {
     nativeEditorSelectedText: getNativeEditorSelectedText(state),
     modalSnippet: getModalSnippet(state),
     snippetCollectionId: getSnippetCollectionId(state),
+    documentTitle: getDocumentTitle(state),
+    pageFavicon: getPageFavicon(state),
   };
 };
 
 const mapDispatchToProps = {
   ...actions,
+  closeNavbar,
   onChangeLocation: push,
-  createBookmark: id => Bookmark.actions.create({ id: `card-${id}` }),
-  deleteBookmark: id => Bookmark.actions.delete({ id: `card-${id}` }),
+  createBookmark: id => Bookmark.actions.create({ id, type: "card" }),
+  deleteBookmark: id => Bookmark.actions.delete({ id, type: "card" }),
 };
 
 function QueryBuilder(props) {
   const {
-    isBookmarked,
     question,
     location,
     params,
     fromUrl,
     uiControls,
+    isNativeEditorOpen,
+    isAnySidebarOpen,
+    closeNavbar,
     initializeQB,
     apiCreateQuestion,
     apiUpdateQuestion,
@@ -181,9 +216,12 @@ function QueryBuilder(props) {
     onChangeLocation,
     setUIControls,
     cancelQuery,
+    isBookmarked,
     createBookmark,
     deleteBookmark,
-    loadTimelinesForCard,
+    allLoaded,
+    showTimelinesForCollection,
+    card,
   } = props;
 
   const forceUpdate = useForceUpdate();
@@ -194,6 +232,10 @@ function QueryBuilder(props) {
 
   const previousUIControls = usePrevious(uiControls);
   const previousLocation = usePrevious(location);
+  const wasShowingAnySidebar = usePrevious(isAnySidebarOpen);
+  const wasNativeEditorOpen = usePrevious(isNativeEditorOpen);
+  const hasQuestion = question != null;
+  const collectionId = question?.collectionId();
 
   const openModal = useCallback(
     (modal, modalContext) => setUIControls({ modal, modalContext }),
@@ -274,10 +316,25 @@ function QueryBuilder(props) {
   });
 
   useEffect(() => {
-    if (question && question.hasBreakoutByDateTime()) {
-      loadTimelinesForCard(question.card());
+    if (
+      (isAnySidebarOpen && !wasShowingAnySidebar) ||
+      (isNativeEditorOpen && !wasNativeEditorOpen)
+    ) {
+      closeNavbar();
     }
-  }, [question, loadTimelinesForCard]);
+  }, [
+    isAnySidebarOpen,
+    wasShowingAnySidebar,
+    isNativeEditorOpen,
+    wasNativeEditorOpen,
+    closeNavbar,
+  ]);
+
+  useEffect(() => {
+    if (allLoaded && hasQuestion) {
+      showTimelinesForCollection(collectionId);
+    }
+  }, [allLoaded, hasQuestion, collectionId, showTimelinesForCollection]);
 
   useEffect(() => {
     const { isShowingDataReference, isShowingTemplateTagsEditor } = uiControls;
@@ -308,6 +365,49 @@ function QueryBuilder(props) {
     }
   });
 
+  const { isRunning } = uiControls;
+
+  const [shouldSendNotification, setShouldSendNotification] = useState(false);
+  const [isShowingToaster, setIsShowingToaster] = useState(false);
+
+  const onTimeout = useCallback(() => {
+    setIsShowingToaster(true);
+  }, []);
+
+  useLoadingTimer(isRunning, {
+    timer: 15000,
+    onTimeout,
+  });
+
+  const [requestPermission, showNotification] = useWebNotification();
+
+  useEffect(() => {
+    if (!isRunning) {
+      setIsShowingToaster(false);
+    }
+    if (!isRunning && shouldSendNotification) {
+      if (document.hidden) {
+        showNotification(
+          t`All Set! Your question is ready.`,
+          t`${card.name} is loaded.`,
+        );
+      }
+      setShouldSendNotification(false);
+    }
+  }, [isRunning, shouldSendNotification, showNotification, card?.name]);
+
+  const onConfirmToast = useCallback(async () => {
+    const result = await requestPermission();
+    if (result === "granted") {
+      setIsShowingToaster(false);
+      setShouldSendNotification(true);
+    }
+  }, [requestPermission]);
+
+  const onDismissToast = useCallback(() => {
+    setIsShowingToaster(false);
+  }, []);
+
   return (
     <View
       {...props}
@@ -320,14 +420,21 @@ function QueryBuilder(props) {
       onCreate={handleCreate}
       handleResize={forceUpdateDebounced}
       toggleBookmark={onClickBookmark}
+      onDismissToast={onDismissToast}
+      onConfirmToast={onConfirmToast}
+      isShowingToaster={isShowingToaster}
     />
   );
 }
 
 export default _.compose(
   Bookmark.loadList(),
+  Timelines.loadList(timelineProps),
   connect(mapStateToProps, mapDispatchToProps),
-  title(({ card }) => card?.name ?? t`Question`),
+  favicon(({ pageFavicon }) => pageFavicon),
+  title(({ card, documentTitle }) => ({
+    title: documentTitle || card?.name || t`Question`,
+    titleIndex: 1,
+  })),
   titleWithLoadingTime("queryStartTime"),
-  fitViewport,
 )(QueryBuilder);

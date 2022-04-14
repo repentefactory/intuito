@@ -44,25 +44,6 @@ export function openNativeEditor({
 }
 
 /**
- * Open notebook editor.
- *
- * @param {object} options
- * @param {boolean} [options.fromCurrentPage] - Open notebook editor from current location
- * @example
- * openNotebookEditor({ fromCurrentPage: true })
- */
-export function openNotebookEditor({ fromCurrentPage } = {}) {
-  if (!fromCurrentPage) {
-    cy.visit("/");
-  }
-
-  cy.findByText("New").click();
-  cy.findByText("Question")
-    .should("be.visible")
-    .click();
-}
-
-/**
  * Executes native query and waits for the results to load.
  * Makes sure that the question is not "dirty" after the query successfully ran.
  * @param {string} [xhrAlias ="dataset"]
@@ -149,4 +130,31 @@ export function visitQuestion(id) {
   cy.visit(`/question/${id}`);
 
   cy.wait("@" + alias);
+}
+
+/**
+ * Visit a dashboard and wait for its query to load.
+ *
+ * NOTE: Avoid using this helper if you need to explicitly wait for
+ * and assert on the individual dashcard queries.
+ *
+ * @param {number} id
+ */
+export function visitDashboard(id) {
+  cy.intercept("GET", `/api/dashboard/${id}`).as("getDashboard");
+  // The very last request when visiting dashboard always checks the collection it is in.
+  // That is - IF user has the permission to view that dashboard!
+  cy.intercept("GET", `/api/collection/*`).as("getParentCollection");
+
+  cy.visit(`/dashboard/${id}`);
+
+  // If users doesn't have permissions to even view the dashboard,
+  // the last request for them would be `getDashboard`.
+  cy.wait("@getDashboard").then(({ response: { statusCode } }) => {
+    canViewDashboard(statusCode) && cy.wait("@getParentCollection");
+  });
+}
+
+function canViewDashboard(statusCode) {
+  return statusCode !== 403;
 }

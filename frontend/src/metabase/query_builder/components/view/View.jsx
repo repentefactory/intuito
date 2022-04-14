@@ -1,10 +1,15 @@
 /* eslint-disable react/prop-types */
 import React from "react";
 import { Motion, spring } from "react-motion";
+import _ from "underscore";
+import { t } from "ttag";
 
 import ExplicitSize from "metabase/components/ExplicitSize";
 import Popover from "metabase/components/Popover";
+import QueryValidationError from "metabase/query_builder/components/QueryValidationError";
+import { SIDEBAR_SIZES } from "metabase/query_builder/constants";
 import LoadingAndErrorWrapper from "metabase/components/LoadingAndErrorWrapper";
+import Toaster from "metabase/components/Toaster";
 
 import NativeQuery from "metabase-lib/lib/queries/NativeQuery";
 import StructuredQuery from "metabase-lib/lib/queries/StructuredQuery";
@@ -156,14 +161,19 @@ export default class View extends React.Component {
   getRightSidebarForStructuredQuery = () => {
     const {
       question,
+      timelines,
       isResultDirty,
       isShowingSummarySidebar,
       isShowingFilterSidebar,
       isShowingTimelineSidebar,
       runQuestionQuery,
-      timelineVisibility,
-      showTimeline,
-      hideTimeline,
+      visibleTimelineIds,
+      selectedTimelineEventIds,
+      xDomain,
+      showTimelines,
+      hideTimelines,
+      selectTimelineEvents,
+      deselectTimelineEvents,
       onOpenModal,
       onCloseSummary,
       onCloseFilter,
@@ -189,9 +199,14 @@ export default class View extends React.Component {
       return (
         <TimelineSidebar
           question={question}
-          visibility={timelineVisibility}
-          onShowTimeline={showTimeline}
-          onHideTimeline={hideTimeline}
+          timelines={timelines}
+          visibleTimelineIds={visibleTimelineIds}
+          selectedTimelineEventIds={selectedTimelineEventIds}
+          xDomain={xDomain}
+          onShowTimelines={showTimelines}
+          onHideTimelines={hideTimelines}
+          onSelectTimelineEvents={selectTimelineEvents}
+          onDeselectTimelineEvents={deselectTimelineEvents}
           onOpenModal={onOpenModal}
           onClose={onCloseTimelines}
         />
@@ -206,9 +221,15 @@ export default class View extends React.Component {
       isShowingTemplateTagsEditor,
       isShowingDataReference,
       isShowingSnippetSidebar,
+      isShowingTimelineSidebar,
       toggleTemplateTagsEditor,
       toggleDataReference,
       toggleSnippetSidebar,
+      showTimelines,
+      hideTimelines,
+      selectTimelineEvents,
+      deselectTimelineEvents,
+      onCloseTimelines,
     } = this.props;
 
     if (isShowingTemplateTagsEditor) {
@@ -223,6 +244,19 @@ export default class View extends React.Component {
 
     if (isShowingSnippetSidebar) {
       return <SnippetSidebar {...this.props} onClose={toggleSnippetSidebar} />;
+    }
+
+    if (isShowingTimelineSidebar) {
+      return (
+        <TimelineSidebar
+          {...this.props}
+          onShowTimelines={showTimelines}
+          onHideTimelines={hideTimelines}
+          onSelectTimelineEvents={selectTimelineEvents}
+          onDeselectTimelineEvents={deselectTimelineEvents}
+          onClose={onCloseTimelines}
+        />
+      );
     }
 
     return null;
@@ -283,6 +317,8 @@ export default class View extends React.Component {
     const isStructured = query instanceof StructuredQuery;
     const isNative = query instanceof NativeQuery;
 
+    const validationError = _.first(query.validate?.());
+
     const topQuery = isStructured && query.topLevelQuery();
 
     // only allow editing of series for structured queries
@@ -298,7 +334,7 @@ export default class View extends React.Component {
     return (
       <QueryBuilderMain isSidebarOpen={isSidebarOpen}>
         {isNative ? (
-          <NativeQueryEditorContainer className="hide sm-show">
+          <NativeQueryEditorContainer>
             <NativeQueryEditor
               {...this.props}
               viewHeight={height}
@@ -320,17 +356,22 @@ export default class View extends React.Component {
           setIsPreviewing={setIsPreviewing}
         />
 
-        <StyledDebouncedFrame enabled={!isLiveResizable}>
-          <QueryVisualization
-            {...this.props}
-            noHeader
-            className="spread"
-            onAddSeries={onAddSeries}
-            onEditSeries={onEditSeries}
-            onRemoveSeries={onRemoveSeries}
-            onEditBreakout={onEditBreakout}
-          />
-        </StyledDebouncedFrame>
+        {validationError ? (
+          <QueryValidationError error={validationError} />
+        ) : (
+          <StyledDebouncedFrame enabled={!isLiveResizable}>
+            <QueryVisualization
+              {...this.props}
+              noHeader
+              className="spread"
+              onAddSeries={onAddSeries}
+              onEditSeries={onEditSeries}
+              onRemoveSeries={onRemoveSeries}
+              onEditBreakout={onEditBreakout}
+              mode={queryMode}
+            />
+          </StyledDebouncedFrame>
+        )}
 
         {ModeFooter && (
           <ModeFooter {...this.props} className="flex-no-shrink" />
@@ -388,9 +429,13 @@ export default class View extends React.Component {
       card,
       databases,
       isShowingNewbModal,
+      isShowingTimelineSidebar,
       queryBuilderMode,
       fitClassNames,
       closeQbNewbModal,
+      onDismissToast,
+      onConfirmToast,
+      isShowingToaster,
     } = this.props;
 
     // if we don't have a card at all or no databases then we are initializing, so keep it simple
@@ -416,6 +461,9 @@ export default class View extends React.Component {
 
     const leftSidebar = this.getLeftSidebar();
     const rightSidebar = this.getRightSidebar();
+    const rightSidebarWidth = isShowingTimelineSidebar
+      ? SIDEBAR_SIZES.TIMELINE
+      : SIDEBAR_SIZES.NORMAL;
 
     return (
       <div className={fitClassNames}>
@@ -432,7 +480,11 @@ export default class View extends React.Component {
               {leftSidebar}
             </ViewSidebar>
             {this.renderMain({ leftSidebar, rightSidebar })}
-            <ViewSidebar side="right" isOpen={!!rightSidebar}>
+            <ViewSidebar
+              side="right"
+              isOpen={!!rightSidebar}
+              width={rightSidebarWidth}
+            >
               {rightSidebar}
             </ViewSidebar>
           </QueryBuilderContentContainer>
@@ -449,6 +501,13 @@ export default class View extends React.Component {
 
         {isStructured && this.renderAggregationPopover()}
         {isStructured && this.renderBreakoutPopover()}
+        <Toaster
+          message={t`Would you like to be notified when this question is done loading?`}
+          isShown={isShowingToaster}
+          onDismiss={onDismissToast}
+          onConfirm={onConfirmToast}
+          fixed
+        />
       </div>
     );
   }

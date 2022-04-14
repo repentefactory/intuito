@@ -292,7 +292,7 @@ export function createEntity(def) {
       withEntityRequestState(object => [object.id, "delete"]),
       withEntityActionDecorators("delete"),
     )(entityObject => async (dispatch, getState) => {
-      await entity.api.delete({ id: entityObject.id });
+      await entity.api.delete(entityObject);
       return {
         entities: { [entity.name]: { [entityObject.id]: null } },
         result: entityObject.id,
@@ -337,6 +337,11 @@ export function createEntity(def) {
         entityQuery,
       };
     }),
+
+    invalidateLists: compose(
+      withAction(INVALIDATE_LISTS_ACTION),
+      withEntityActionDecorators("invalidateLists"),
+    )(() => null),
 
     // user defined actions should override defaults
     ...entity.objectActions,

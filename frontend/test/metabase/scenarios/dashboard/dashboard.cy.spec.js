@@ -8,6 +8,7 @@ import {
   sidebar,
   modal,
   openNewCollectionItemFlowFor,
+  visitDashboard,
 } from "__support__/e2e/cypress";
 
 import { SAMPLE_DB_ID } from "__support__/e2e/cypress_data";
@@ -26,13 +27,13 @@ describe("scenarios > dashboard", () => {
     cy.signInAsAdmin();
   });
 
-  it("should create new dashboard and navigate to it from the nav bar", () => {
+  it("should create new dashboard and navigate to it from the nav bar and from the root collection (metabase#20638)", () => {
     // Create dashboard
     cy.visit("/");
     cy.icon("add").click();
     cy.findByText("Dashboard").click();
 
-    createDashboardUsingUI("Test Dash", "Desc");
+    createDashboardUsingUI("Dash A", "Desc A");
 
     cy.findByText("This dashboard is looking empty.");
     cy.findByText("You're editing this dashboard.");
@@ -40,23 +41,26 @@ describe("scenarios > dashboard", () => {
     // See it as a listed dashboard
     cy.visit("/collection/root?type=dashboard");
     cy.findByText("This dashboard is looking empty.").should("not.exist");
-    cy.findByText("Test Dash");
-  });
+    cy.findByText("Dash A");
 
-  it.skip("should create new dashboard and navigate to it from the root collection (metabase#20638)", () => {
-    cy.visit("/collection/root");
+    cy.log(
+      "should create new dashboard and navigate to it from the root collection (metabase#20638)",
+    );
+
     openNewCollectionItemFlowFor("dashboard");
 
-    createDashboardUsingUI("Test Dash", "Desc");
+    createDashboardUsingUI("Dash B", "Desc B");
 
     cy.findByText("This dashboard is looking empty.");
     cy.findByText("You're editing this dashboard.");
   });
 
   it("should update the name and description", () => {
-    cy.visit("/dashboard/1");
+    visitDashboard(1);
 
-    cy.icon("ellipsis").click();
+    cy.get("main header").within(() => {
+      cy.icon("ellipsis").click();
+    });
     // update title
     popover().within(() => cy.findByText("Edit dashboard details").click());
 
@@ -70,7 +74,7 @@ describe("scenarios > dashboard", () => {
     });
 
     // refresh page and check that title/desc were updated
-    cy.visit("/dashboard/1");
+    visitDashboard(1);
     cy.findByText("Orders per year")
       .next()
       .trigger("mouseenter");
@@ -78,7 +82,7 @@ describe("scenarios > dashboard", () => {
   });
 
   it("should add a filter", () => {
-    cy.visit("/dashboard/1");
+    visitDashboard(1);
     cy.icon("pencil").click();
     cy.icon("filter").click();
     // Adding location/state doesn't make much sense for this case,
@@ -103,7 +107,7 @@ describe("scenarios > dashboard", () => {
   });
 
   it("should add a question", () => {
-    cy.visit("/dashboard/1");
+    visitDashboard(1);
     cy.icon("pencil").click();
     cy.get(".QueryBuilder-section .Icon-add").click();
     cy.findByText("Orders, Count").click();
@@ -243,7 +247,7 @@ describe("scenarios > dashboard", () => {
           });
         });
 
-        cy.visit(`/dashboard/${dashboardId}`);
+        visitDashboard(dashboardId);
         cy.get(".leaflet-marker-icon") // pin icon
           .eq(0)
           .click({ force: true });
@@ -282,7 +286,7 @@ describe("scenarios > dashboard", () => {
           ],
         });
 
-        cy.visit(`/dashboard/${dashboard_id}`);
+        visitDashboard(dashboard_id);
       },
     );
 
@@ -349,7 +353,7 @@ describe("scenarios > dashboard", () => {
     cy.route(`/api/field/${PRODUCTS.CATEGORY}`).as("fetchField");
     cy.route(`/api/field/${PRODUCTS.CATEGORY}/values`).as("fetchFieldValues");
 
-    cy.visit("/dashboard/1");
+    visitDashboard(1);
 
     filterWidget()
       .as("filterWidget")
@@ -409,7 +413,7 @@ describe("scenarios > dashboard", () => {
       },
     );
     cy.signInAsNormalUser();
-    cy.visit("/dashboard/1");
+    visitDashboard(1);
 
     cy.wait("@loadDashboard");
     cy.findByText("Orders in a dashboard");
@@ -434,20 +438,20 @@ describe("scenarios > dashboard", () => {
       ],
     });
 
-    cy.visit("/dashboard/1");
+    visitDashboard(1);
     cy.contains("37.65");
     assertScrollBarExists();
     cy.icon("share").click();
-    cy.findByText("Sharing and embedding").click();
-    // Fullscreen modal opens - close it now
-    cy.icon("close").click();
+    cy.get(".Modal--full").within(() => {
+      cy.icon("close").click();
+    });
     cy.get(".Modal--full").should("not.exist");
     assertScrollBarExists();
   });
 
   it("should show values of added dashboard card via search immediately (metabase#15959)", () => {
     cy.intercept("GET", "/api/search*").as("search");
-    cy.visit("/dashboard/1");
+    visitDashboard(1);
     cy.icon("pencil").click();
     cy.icon("add")
       .last()

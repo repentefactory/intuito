@@ -19,6 +19,7 @@ import {
   ExpressionReference,
   DatetimeUnit,
 } from "metabase-types/types/Query";
+import { ValidationError, VALIDATION_ERROR_TYPES } from "./ValidationError";
 import { IconName } from "metabase-types/types";
 import { getFieldValues, getRemappings } from "metabase/lib/query/field";
 import { DATETIME_UNITS, formatBucketing } from "metabase/lib/query_time";
@@ -774,7 +775,7 @@ export class FieldDimension extends Dimension {
     return typeof this._fieldIdOrName === "string";
   }
 
-  _createField(fieldInfo, { hydrate = false } = {}) {
+  _createField(fieldInfo, { hydrate = false } = {}): Field {
     const field = new Field({
       ...fieldInfo,
       metadata: this._metadata,
@@ -805,7 +806,7 @@ export class FieldDimension extends Dimension {
     return field;
   }
 
-  field(): any {
+  field(): Field {
     const question = this.query()?.question();
     const lookupField = this.isIntegerFieldId() ? "id" : "name";
     const fieldMetadata = question
@@ -1212,6 +1213,14 @@ export class ExpressionDimension extends Dimension {
     return this._expressionName;
   }
 
+  _createField(fieldInfo): Field {
+    return new Field({
+      ...fieldInfo,
+      metadata: this._metadata,
+      query: this._query,
+    });
+  }
+
   field() {
     const query = this._query;
     const table = query ? query.table() : null;
@@ -1242,8 +1251,6 @@ export class ExpressionDimension extends Dimension {
 
     let base_type = type;
     if (!type.startsWith("type/")) {
-      base_type = "type/Float"; // fallback
-
       switch (type) {
         case MONOTYPE.String:
           base_type = "type/Text";
@@ -1253,10 +1260,25 @@ export class ExpressionDimension extends Dimension {
           base_type = "type/Boolean";
           break;
 
+        // fallback
         default:
+          base_type = "type/Float";
           break;
       }
       semantic_type = base_type;
+    }
+
+    // if a dimension has access to a question with result metadata,
+    // we try to find the field using the metadata directly,
+    // so that we don't have to try to infer field metadata from the expression
+    const resultMetadata = query?.question()?.getResultMetadata?.();
+    if (resultMetadata) {
+      const fieldMetadata = _.findWhere(resultMetadata, {
+        name: this.name(),
+      });
+      if (fieldMetadata) {
+        return this._createField(fieldMetadata);
+      }
     }
 
     const subsOptions = getOptions(semantic_type ? semantic_type : base_type);
@@ -1515,6 +1537,27 @@ export class TemplateTagDimension extends FieldDimension {
     return Array.isArray(clause) && clause[0] === "template-tag";
   }
 
+  validateTemplateTag(): ValidationError | null {
+    const tag = this.tag();
+    if (!tag) {
+      return new ValidationError(t`Invalid template tag "${this.tagName()}"`);
+    }
+
+    if (this.isDimensionType() && tag.dimension == null) {
+      return new ValidationError(
+        t`The variable "${this.tagName()}" needs to be mapped to a field.`,
+        VALIDATION_ERROR_TYPES.MISSING_TAG_DIMENSION,
+      );
+    }
+
+    return null;
+  }
+
+  isValidDimensionType() {
+    const maybeErrors = this.validateTemplateTag();
+    return this.isDimensionType() && maybeErrors === null;
+  }
+
   isDimensionType() {
     const maybeTag = this.tag();
     return maybeTag?.type === "dimension";
@@ -1526,7 +1569,7 @@ export class TemplateTagDimension extends FieldDimension {
   }
 
   dimension() {
-    if (this.isDimensionType()) {
+    if (this.isValidDimensionType()) {
       const tag = this.tag();
       return Dimension.parseMBQL(tag.dimension, this._metadata, this._query);
     }
@@ -1549,7 +1592,7 @@ export class TemplateTagDimension extends FieldDimension {
   }
 
   field() {
-    if (this.isDimensionType()) {
+    if (this.isValidDimensionType()) {
       return this.dimension().field();
     }
 
@@ -1557,7 +1600,7 @@ export class TemplateTagDimension extends FieldDimension {
   }
 
   name() {
-    return this.isDimensionType() ? this.field().name : this.tagName();
+    return this.isValidDimensionType() ? this.field().name : this.tagName();
   }
 
   tagName() {
@@ -1574,7 +1617,7 @@ export class TemplateTagDimension extends FieldDimension {
   }
 
   icon() {
-    if (this.isDimensionType()) {
+    if (this.isValidDimensionType()) {
       return this.dimension().icon();
     } else if (this.isVariableType()) {
       return this.variable().icon();

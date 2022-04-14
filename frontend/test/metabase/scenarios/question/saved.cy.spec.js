@@ -4,6 +4,9 @@ import {
   modal,
   openOrdersTable,
   summarize,
+  visitQuestion,
+  startNewQuestion,
+  visualize,
 } from "__support__/e2e/cypress";
 
 describe("scenarios > question > saved", () => {
@@ -64,7 +67,7 @@ describe("scenarios > question > saved", () => {
   });
 
   it("view and filter saved question", () => {
-    cy.visit("/question/1");
+    visitQuestion(1);
     cy.findAllByText("Orders"); // question and table name appears
 
     // filter to only orders with quantity=100
@@ -98,7 +101,7 @@ describe("scenarios > question > saved", () => {
     cy.route("POST", "/api/card").as("cardCreate");
     cy.route("POST", "/api/card/1/query").as("query");
 
-    cy.visit("/question/1");
+    visitQuestion(1);
     cy.wait("@query");
 
     cy.findByTestId("saved-question-header-button").click();
@@ -114,7 +117,7 @@ describe("scenarios > question > saved", () => {
   it("should revert a saved question to a previous version", () => {
     cy.intercept("PUT", "/api/card/**").as("updateQuestion");
 
-    cy.visit("/question/1");
+    visitQuestion(1);
     cy.findByTestId("saved-question-header-button").click();
     cy.findByText("History").click();
 
@@ -133,15 +136,15 @@ describe("scenarios > question > saved", () => {
     cy.findByText(/This is a question/i).should("not.exist");
   });
 
-  it("should be able to use integer filter on a saved native query (metabase#15808)", () => {
+  it("should be able to use integer filter on a nested query based on a saved native question (metabase#15808)", () => {
     cy.createNativeQuestion({
       name: "15808",
       native: { query: "select * from products" },
     });
-    cy.visit("/question/new");
-    cy.findByText("Simple question").click();
+    startNewQuestion();
     cy.findByText("Saved Questions").click();
     cy.findByText("15808").click();
+    visualize();
     cy.findAllByText("Filter")
       .first()
       .click();
@@ -158,7 +161,7 @@ describe("scenarios > question > saved", () => {
   });
 
   it("should show table name in header with a table info popover on hover", () => {
-    cy.visit("/question/1");
+    visitQuestion(1);
     cy.findByTestId("question-table-badges").trigger("mouseenter");
     cy.findByText("9 columns");
   });

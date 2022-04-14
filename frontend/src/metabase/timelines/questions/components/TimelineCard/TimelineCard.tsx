@@ -4,10 +4,12 @@ import React, {
   memo,
   useCallback,
   useState,
+  useEffect,
 } from "react";
 import _ from "underscore";
-import { parseTimestamp } from "metabase/lib/time";
-import { Collection, Timeline, TimelineEvent } from "metabase-types/api";
+import { getTimelineName } from "metabase/lib/timelines";
+import Ellipsified from "metabase/components/Ellipsified";
+import { Timeline, TimelineEvent } from "metabase-types/api";
 import EventCard from "../EventCard";
 import {
   CardHeader,
@@ -20,48 +22,76 @@ import {
 
 export interface TimelineCardProps {
   timeline: Timeline;
+  isDefault?: boolean;
   isVisible?: boolean;
-  collection: Collection;
-  onToggleTimeline?: (timeline: Timeline, isVisible: boolean) => void;
+  selectedEventIds?: number[];
   onEditEvent?: (event: TimelineEvent) => void;
+  onMoveEvent?: (event: TimelineEvent) => void;
   onArchiveEvent?: (event: TimelineEvent) => void;
+  onToggleEvent?: (event: TimelineEvent, isSelected: boolean) => void;
+  onToggleTimeline?: (timeline: Timeline, isVisible: boolean) => void;
 }
 
 const TimelineCard = ({
   timeline,
-  collection,
+  isDefault,
   isVisible,
-  onToggleTimeline,
+  selectedEventIds = [],
   onEditEvent,
+  onMoveEvent,
   onArchiveEvent,
+  onToggleEvent,
+  onToggleTimeline,
 }: TimelineCardProps): JSX.Element => {
   const events = getEvents(timeline.events);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const isEventSelected = events.some(e => selectedEventIds.includes(e.id));
+  const [isExpanded, setIsExpanded] = useState(isDefault || isEventSelected);
 
   const handleHeaderClick = useCallback(() => {
     setIsExpanded(isExpanded => !isExpanded);
   }, []);
 
-  const handleCheckboxChange = useCallback(
+  const handleCheckboxClick = useCallback((event: MouseEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  const handleToggleTimeline = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       onToggleTimeline?.(timeline, event.target.checked);
     },
     [timeline, onToggleTimeline],
   );
 
-  const handleCheckboxClick = useCallback((event: MouseEvent) => {
-    event.stopPropagation();
-  }, []);
+  const handleToggleEvent = useCallback(
+    (event: TimelineEvent, isSelected: boolean) => {
+      onToggleEvent?.(event, isSelected);
+
+      if (isSelected && !isVisible) {
+        onToggleTimeline?.(timeline, true);
+      }
+    },
+    [timeline, isVisible, onToggleTimeline, onToggleEvent],
+  );
+
+  useEffect(() => {
+    if (isEventSelected) {
+      setIsExpanded(isEventSelected);
+    }
+  }, [isEventSelected, selectedEventIds]);
 
   return (
     <CardRoot>
       <CardHeader onClick={handleHeaderClick}>
         <CardCheckbox
           checked={isVisible}
-          onChange={handleCheckboxChange}
           onClick={handleCheckboxClick}
+          onChange={handleToggleTimeline}
         />
-        <CardLabel>{timeline.name}</CardLabel>
+        <CardLabel>
+          <Ellipsified tooltipMaxWidth="100%">
+            {getTimelineName(timeline)}
+          </Ellipsified>
+        </CardLabel>
         <CardIcon name={isExpanded ? "chevronup" : "chevrondown"} />
       </CardHeader>
       {isExpanded && (
@@ -70,9 +100,12 @@ const TimelineCard = ({
             <EventCard
               key={event.id}
               event={event}
-              collection={collection}
+              timeline={timeline}
+              isSelected={selectedEventIds.includes(event.id)}
               onEdit={onEditEvent}
+              onMove={onMoveEvent}
               onArchive={onArchiveEvent}
+              onToggle={handleToggleEvent}
             />
           ))}
         </CardContent>
@@ -83,8 +116,7 @@ const TimelineCard = ({
 
 const getEvents = (events: TimelineEvent[] = []) => {
   return _.chain(events)
-    .filter(e => !e.archived)
-    .sortBy(e => parseTimestamp(e.timestamp))
+    .sortBy(e => e.timestamp)
     .reverse()
     .value();
 };

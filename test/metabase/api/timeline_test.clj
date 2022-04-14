@@ -1,8 +1,11 @@
 (ns metabase.api.timeline-test
   "Tests for /api/timeline endpoints."
   (:require [clojure.test :refer :all]
+            [medley.core :as m]
             [metabase.http-client :as http]
             [metabase.models.collection :refer [Collection]]
+            [metabase.models.permissions :as perms]
+            [metabase.models.permissions-group :as group]
             [metabase.models.timeline :refer [Timeline]]
             [metabase.models.timeline-event :refer [TimelineEvent]]
             [metabase.server.middleware.util :as middleware.u]
@@ -20,21 +23,53 @@
 (deftest list-timelines-test
   (testing "GET /api/timeline"
     (mt/with-temp Collection [collection {:name "Important Data"}]
-      (let [id          (u/the-id collection)
-            events-of   (fn [tls]
-                          (into #{} (comp (filter (comp #{id} :collection_id))
-                                          (map :name))
-                                tls))]
+      (let [id        (u/the-id collection)
+            events-of (fn [tls]
+                        (into #{} (comp (filter (comp #{id} :collection_id))
+                                        (map :name))
+                              tls))]
         (mt/with-temp* [Timeline [tl-a {:name "Timeline A", :collection_id id}]
                         Timeline [tl-b {:name "Timeline B", :collection_id id}]
-                        Timeline [tl-c {:name "Timeline C", :collection_id id
-                                        :archived true}]]
+                        Timeline [tl-c {:name "Timeline C", :collection_id id :archived true}]]
           (testing "check that we only get un-archived timelines"
             (is (= #{"Timeline A" "Timeline B"}
                    (events-of (mt/user-http-request :rasta :get 200 "timeline")))))
           (testing "check that we only get archived timelines when `archived=true`"
             (is (= #{"Timeline C"}
-                   (events-of (mt/user-http-request :rasta :get 200 "timeline" :archived true))))))))))
+                   (events-of (mt/user-http-request :rasta :get 200 "timeline" :archived true)))))
+          (testing "check that `:collection` key is hydrated on each timeline"
+            (is (= #{id}
+                   (->> (mt/user-http-request :rasta :get 200 "timeline")
+                        (filter (comp #{id} :collection_id))
+                        (map #(get-in % [:collection :id]))
+                        set))))
+          (testing "check that `:can_write` key is hydrated"
+            (is (every?
+                 #(contains? % :can_write)
+                 (->> (mt/user-http-request :rasta :get 200 "timeline")
+                      (filter (comp #{id} :collection_id))
+                      :collection)))))))
+    (testing "checks permissions"
+      (mt/with-temp* [Collection    [{coll-id :id :as collection} {:name "private collection"}]
+                      Timeline      [tl-a {:name "Timeline A" :collection_id coll-id}]
+                      Timeline      [tl-b {:name "Timeline B" :collection_id coll-id}]
+                      TimelineEvent [e-a  {:name "Event 1" :timeline_id (u/the-id tl-a)}]
+                      TimelineEvent [e-b  {:name "Event 2" :timeline_id (u/the-id tl-b)}]]
+        (letfn [(events-for [user events?]
+                  (->> (m/mapply mt/user-http-request user :get 200 "timeline" (when events? {:include "events"}))
+                       (filter (comp #{coll-id} :collection_id))))]
+          (perms/revoke-collection-permissions! (group/all-users) coll-id)
+          (testing "a non-admin user cannot see any timelines"
+            (is (= [] (events-for :rasta true)))
+            (is (= [] (events-for :rasta false))))
+          (testing "an admin user can see these timelines"
+            (is (partial= [{:name "Timeline A"
+                            :events [{:name "Event 1"}]}
+                           {:name "Timeline B"
+                            :events [{:name "Event 2"}]}]
+                          (events-for :crowberto true)))
+            (is (partial= [{:name "Timeline A"} {:name "Timeline B"}]
+                          (events-for :crowberto false)))))))))
 
 (deftest get-timeline-test
   (testing "GET /api/timeline/:id"
@@ -44,6 +79,15 @@
         (is (= "Timeline A"
                (->> (mt/user-http-request :rasta :get 200 (str "timeline/" (u/the-id tl-a)))
                     :name))))
+      (testing "check that we hydrate the timeline's `:collection` key"
+        (is (= "root"
+               (-> (mt/user-http-request :rasta :get 200 (str "timeline/" (u/the-id tl-a)))
+                   (get-in [:collection :id])))))
+      (testing "check that `:can_write` key is hydrated"
+        (is (contains?
+             (->> (mt/user-http-request :rasta :get 200 (str "timeline/" (u/the-id tl-a)))
+                  :collection)
+             :can_write)))
       (testing "check that we get the timeline with the id specified, even if the timeline is archived"
         (is (= "Timeline B"
                (->> (mt/user-http-request :rasta :get 200 (str "timeline/" (u/the-id tl-b)))
@@ -109,11 +153,15 @@
             ;; make an API call to create a timeline
             (mt/user-http-request :rasta :post 200 "timeline"
                                   {:name          "Rasta's TL"
+                                   :default       false
                                    :creator_id    (u/the-id (mt/fetch-user :rasta))
                                    :collection_id id})
-            ;; check the collection to see if the timeline is there
-            (is (= "Rasta's TL"
-                   (-> (db/select-one Timeline :collection_id id) :name)))))))))
+            (testing "check the collection to see if the timeline is there"
+              (is (= "Rasta's TL"
+                     (-> (db/select-one Timeline :collection_id id) :name))))
+            (testing "Check that the icon is 'star' by default"
+              (is (= "star"
+                     (-> (db/select-one-field :icon Timeline :collection_id id)))))))))))
 
 (deftest update-timeline-test
   (testing "PUT /api/timeline/:id"

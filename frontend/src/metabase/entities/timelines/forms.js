@@ -6,7 +6,7 @@ const createForm = () => {
   return [
     {
       name: "name",
-      title: t`Timeline name`,
+      title: t`Name`,
       placeholder: t`Product releases`,
       autoFocus: true,
       validate: validate.required().maxLength(255),
@@ -21,12 +21,15 @@ const createForm = () => {
       name: "icon",
       title: t`Default icon`,
       type: "select",
-      initial: "star",
       options: getTimelineIcons(),
       validate: validate.required(),
     },
     {
       name: "collection_id",
+      type: "hidden",
+    },
+    {
+      name: "default",
       type: "hidden",
     },
   ];
