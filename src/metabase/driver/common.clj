@@ -1,8 +1,8 @@
 (ns metabase.driver.common
   "Shared definitions and helper functions for use across different drivers."
-  (:require [clj-time.coerce :as tcoerce]
+  (:require [clj-time.coerce :as time.coerce]
             [clj-time.core :as time]
-            [clj-time.format :as tformat]
+            [clj-time.format :as time.format]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [metabase.driver :as driver]
@@ -18,7 +18,8 @@
            org.joda.time.format.DateTimeFormatter))
 
 (def connection-error-messages
-  "Generic error messages that drivers should return in their implementation of `humanize-connection-error-message`."
+  "Generic error messages that drivers should return in their implementation
+  of [[metabase.driver/humanize-connection-error-message]]."
   {:cannot-connect-check-host-and-port
    (str (deferred-tru "Hmm, we couldn''t connect to the database.")
         " "
@@ -270,7 +271,7 @@
 (extend-protocol ParseDateTimeString
   DateTimeFormatter
   (parse [formatter date-time-str]
-    (tformat/parse formatter date-time-str)))
+    (time.format/parse formatter date-time-str)))
 
 ;; Java's SimpleDateFormat is more flexible on what it accepts for a time zone identifier. As an example, CEST is not
 ;; recognized by Joda's DateTimeFormatter but is recognized by Java's SimpleDateFormat. This defrecord is used to
@@ -283,13 +284,13 @@
     (let [sdf         (SimpleDateFormat. format-str)
           parsed-date (.parse sdf date-time-str)
           joda-tz     (-> sdf .getTimeZone .getID time/time-zone-for-id)]
-      (time/to-time-zone (tcoerce/from-date parsed-date) joda-tz))))
+      (time/to-time-zone (time.coerce/from-date parsed-date) joda-tz))))
 
 (defn ^:deprecated create-db-time-formatters
   "Creates date formatters from `DATE-FORMAT-STR` that will preserve the offset/timezone information. Will return a
   JodaTime date formatter and a core Java SimpleDateFormat. Results of this are threadsafe and can safely be def'd."
   [date-format-str]
-  [(.withOffsetParsed ^DateTimeFormatter (tformat/formatter date-format-str))
+  [(.withOffsetParsed ^DateTimeFormatter (time.format/formatter date-format-str))
    (ThreadSafeSimpleDateFormat. date-format-str)])
 
 (defn- ^:deprecated first-successful-parse
@@ -443,12 +444,26 @@
   []
   (.indexOf days-of-week (setting/get-value-of-type :keyword :start-of-week)))
 
-(s/defn start-of-week-offset :- s/Int
-  "Return the offset for start of week to have the week start on [[metabase.public-settings/start-of-week]] given
-  `driver`."
-  [driver]
-  (let [db-start-of-week     (.indexOf days-of-week (driver/db-start-of-week driver))
+(defn start-of-week-offset-for-day
+  "Like [[start-of-week-offset]] but takes a `start-of-week` keyword like `:sunday` rather than ` driver`. Returns the
+  offset (as a negative number) needed to adjust a day of week in the range 1..7 with `start-of-week` as one to a day
+  of week in the range 1..7 with [[metabase.public-settings/start-of-week]] as 1."
+  [start-of-week]
+  (let [db-start-of-week     (.indexOf days-of-week start-of-week)
         target-start-of-week (start-of-week->int)
         delta                (int (- target-start-of-week db-start-of-week))]
     (* (Integer/signum delta)
        (- 7 (Math/abs delta)))))
+
+(s/defn start-of-week-offset :- s/Int
+  "Return the offset needed to adjust a day of the week (in the range 1..7) returned by the `driver`, with `1`
+  corresponding to [[driver/db-start-of-week]], so that `1` corresponds to [[metabase.public-settings/start-of-week]] in
+  results.
+
+  e.g.
+
+  If `:my-driver` returns [[driver/db-start-of-week]] as `:sunday` (1 is Sunday, 2 is Monday, and so forth),
+  and [[metabase.public-settings/start-of-week]] is `:monday` (the results should have 1 as Monday, 2 as Tuesday... 7 is
+  Sunday), then the offset should be `-1`, because `:monday` returned by the driver (`2`) minus `1` = `1`."
+  [driver]
+  (start-of-week-offset-for-day (driver/db-start-of-week driver)))

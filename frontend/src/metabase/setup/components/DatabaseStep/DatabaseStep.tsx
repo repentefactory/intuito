@@ -5,6 +5,7 @@ import { updateIn } from "icepick";
 import Users from "metabase/entities/users";
 import Databases from "metabase/entities/databases";
 import DriverWarning from "metabase/containers/DriverWarning";
+import { DatabaseInfo, InviteInfo, UserInfo } from "metabase-types/store";
 import ActiveStep from "../ActiveStep";
 import InactiveStep from "../InvactiveStep";
 import SetupSection from "../SetupSection";
@@ -15,7 +16,6 @@ import {
   StepButton,
 } from "./DatabaseStep.styled";
 import { FormProps } from "./types";
-import { DatabaseInfo, InviteInfo, UserInfo } from "../../types";
 
 export interface DatabaseStepProps {
   user?: UserInfo;
@@ -26,7 +26,7 @@ export interface DatabaseStepProps {
   isStepActive: boolean;
   isStepCompleted: boolean;
   isSetupCompleted: boolean;
-  onEngineChange: (engine: string) => void;
+  onEngineChange: (engine?: string) => void;
   onStepSelect: () => void;
   onDatabaseSubmit: (database: DatabaseInfo) => void;
   onInviteSubmit: (invite: InviteInfo) => void;
@@ -100,7 +100,7 @@ interface DatabaseFormProps {
   database?: DatabaseInfo;
   engine?: string;
   onSubmit: (database: DatabaseInfo) => void;
-  onEngineChange: (engine: string) => void;
+  onEngineChange: (engine?: string) => void;
 }
 
 const DatabaseForm = ({
@@ -118,7 +118,7 @@ const DatabaseForm = ({
   };
 
   const handleEngineChange = (value?: string) => {
-    value && onEngineChange(value);
+    onEngineChange(value);
   };
 
   return (

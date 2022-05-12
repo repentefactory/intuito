@@ -16,11 +16,11 @@ jobs:
 
   build:
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-2vcpu-ubuntu-2004
+    runs-on: ubuntu-20.04
     timeout-minutes: 25
     strategy:
       matrix:
-        edition: [oss, ee]
+        edition: [ee]
     env:
       MB_EDITION: ${{ matrix.edition }}
       INTERACTIVE: false
@@ -42,7 +42,7 @@ jobs:
       uses: ./.github/actions/prepare-uberjar-artifact
 
   e2e-tests:
-    runs-on: buildjet-4vcpu-ubuntu-2004
+    runs-on: ubuntu-20.04
     timeout-minutes: 30
     needs: build
     name: e2e-tests-${{ matrix.folder }}-${{ matrix.edition }}
@@ -57,10 +57,14 @@ jobs:
       fail-fast: false
       matrix:
         java-version: [11]
-        edition: [oss, ee]
+        edition: [ee]
         folder:
+          - "binning"
+          - "custom-column"
+          - "dashboard"
+          - "dashboard-filters"
           - "downloads"
-          - "moderation"
+          - "joins"
     services:
       maildev:
         image: maildev/maildev:1.1.0
