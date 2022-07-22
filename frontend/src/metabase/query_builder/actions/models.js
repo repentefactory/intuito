@@ -6,7 +6,6 @@ import { t } from "ttag";
 import { isLocalField, isSameField } from "metabase/lib/query/field_ref";
 
 import { addUndo } from "metabase/redux/undo";
-import { CardApi } from "metabase/services";
 
 import { getOriginalCard, getQuestion, getResultsMetadata } from "../selectors";
 
@@ -59,42 +58,37 @@ export const setResultsMetadata = createAction(SET_RESULTS_METADATA);
 export const SET_METADATA_DIFF = "metabase/qb/SET_METADATA_DIFF";
 export const setMetadataDiff = createAction(SET_METADATA_DIFF);
 
-export const setFieldMetadata = ({ field_ref, changes }) => (
-  dispatch,
-  getState,
-) => {
-  const question = getQuestion(getState());
-  const resultsMetadata = getResultsMetadata(getState());
+export const setFieldMetadata =
+  ({ field_ref, changes }) =>
+  (dispatch, getState) => {
+    const question = getQuestion(getState());
+    const resultsMetadata = getResultsMetadata(getState());
 
-  const nextColumnMetadata = resultsMetadata.columns.map(fieldMetadata => {
-    const compareExact =
-      !isLocalField(field_ref) || !isLocalField(fieldMetadata.field_ref);
-    const isTargetField = isSameField(
-      field_ref,
-      fieldMetadata.field_ref,
-      compareExact,
-    );
-    return isTargetField ? merge(fieldMetadata, changes) : fieldMetadata;
-  });
+    const nextColumnMetadata = resultsMetadata.columns.map(fieldMetadata => {
+      const compareExact =
+        !isLocalField(field_ref) || !isLocalField(fieldMetadata.field_ref);
+      const isTargetField = isSameField(
+        field_ref,
+        fieldMetadata.field_ref,
+        compareExact,
+      );
+      return isTargetField ? merge(fieldMetadata, changes) : fieldMetadata;
+    });
 
-  const nextResultsMetadata = {
-    ...resultsMetadata,
-    columns: nextColumnMetadata,
+    const nextResultsMetadata = {
+      ...resultsMetadata,
+      columns: nextColumnMetadata,
+    };
+
+    const nextQuestion = question.setResultsMetadata(nextResultsMetadata);
+
+    dispatch(updateQuestion(nextQuestion));
+    dispatch(setMetadataDiff({ field_ref, changes }));
+    dispatch(setResultsMetadata(nextResultsMetadata));
   };
 
-  const nextQuestion = question.setResultsMetadata(nextResultsMetadata);
-
-  dispatch(updateQuestion(nextQuestion));
-  dispatch(setMetadataDiff({ field_ref, changes }));
-  dispatch(setResultsMetadata(nextResultsMetadata));
+export const onModelPersistenceChange = isEnabled => (dispatch, getState) => {
+  const question = getQuestion(getState());
+  const nextQuestion = question.setPersisted(isEnabled);
+  dispatch(updateQuestion(nextQuestion, { shouldStartAdHocQuestion: false }));
 };
-
-export const PERSIST_DATASET = "metabase/qb/PERSIST_DATASET";
-export const persistDataset = createAction(PERSIST_DATASET, id =>
-  CardApi.persist({ id }),
-);
-
-export const UNPERSIST_DATASET = "metabase/qb/UNPERSIST_DATASET";
-export const unpersistDataset = createAction(UNPERSIST_DATASET, id =>
-  CardApi.unpersist({ id }),
-);

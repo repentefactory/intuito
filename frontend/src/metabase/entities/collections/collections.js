@@ -90,25 +90,33 @@ const Collections = createEntity({
     getInitialCollectionId: createSelector(
       [
         state => state.entities.collections,
+        getUserPersonalCollectionId,
 
         // these are listed in order of priority
         byCollectionIdProp,
         byCollectionIdNavParam,
         byCollectionUrlId,
         byCollectionQueryParameter,
-
-        // defaults
-        () => ROOT_COLLECTION.id,
-        getUserPersonalCollectionId,
       ],
-      (collections, ...collectionIds) => {
-        for (const collectionId of collectionIds) {
+      (collections, personalId, ...collectionIds) => {
+        const allCollectionIds = [
+          ...collectionIds,
+          ROOT_COLLECTION.id,
+          personalId,
+        ];
+
+        for (const collectionId of allCollectionIds) {
           const collection = collections[collectionId];
           if (collection && collection.can_write) {
             return canonicalCollectionId(collectionId);
           }
         }
-        return canonicalCollectionId(ROOT_COLLECTION.id);
+
+        const rootCollection = collections[ROOT_COLLECTION.id];
+
+        return rootCollection?.can_write
+          ? canonicalCollectionId(ROOT_COLLECTION.id)
+          : canonicalCollectionId(personalId);
       },
     ),
   },
@@ -189,9 +197,12 @@ export function getExpandedCollectionsById(
       // move personal collections into PERSONAL_COLLECTIONS fake collection
       if (c.personal_owner_id != null) {
         parentId = PERSONAL_COLLECTIONS.id;
-      } else if (c.path[c.path.length - 1]) {
-        parentId = c.path[c.path.length - 1];
       } else {
+        // Find the closest parent that the user has permissions for
+        const parentIdIndex = _.findLastIndex(c.path, p => collectionsById[p]);
+        parentId = parentIdIndex >= 0 ? c.path[parentIdIndex] : undefined;
+      }
+      if (!parentId) {
         parentId = ROOT_COLLECTION.id;
       }
 

@@ -7,12 +7,22 @@ import {
   UserId,
 } from "metabase-types/api";
 
+export type ModelCacheState =
+  | "creating"
+  | "refreshing"
+  | "persisted"
+  | "error"
+  | "deletable"
+  | "off";
+
 export interface ModelCacheRefreshStatus {
   id: number;
-  state: "refreshing" | "persisted" | "error";
+  state: ModelCacheState;
   error: string | null;
   active: boolean;
 
+  card_archived?: boolean;
+  card_dataset?: boolean;
   card_id: CardId;
   card_name: string;
 
@@ -30,6 +40,6 @@ export interface ModelCacheRefreshStatus {
   refresh_end: string;
   "next-fire-time": string;
 
-  creator_id: UserId;
-  creator: BaseUser;
+  creator_id?: UserId;
+  creator?: BaseUser;
 }

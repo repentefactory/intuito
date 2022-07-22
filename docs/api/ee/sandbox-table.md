@@ -1,4 +1,11 @@
+---
+title: "Sandbox table"
+summary: "API endpoints for Sandbox table."
+---
+
 # Sandbox table
+
+API endpoints for Sandbox table.
 
   - [GET /api/ee/sandbox/table/:id/query_metadata](#get-apieesandboxtableidquery_metadata)
 
@@ -17,6 +24,8 @@ This endpoint essentially acts as a wrapper for the OSS version of this route. W
 *  **`include_sensitive_fields`** value may be nil, or if non-nil, value must be a valid boolean string ('true' or 'false').
 
 *  **`include_hidden_fields`** value may be nil, or if non-nil, value must be a valid boolean string ('true' or 'false').
+
+*  **`include_editable_data_model`** value may be nil, or if non-nil, value must be a valid boolean string ('true' or 'false').
 
 ---
 

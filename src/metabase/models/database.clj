@@ -4,11 +4,14 @@
             [medley.core :as m]
             [metabase.db.util :as mdb.u]
             [metabase.driver :as driver]
+            [metabase.driver.impl :as driver.impl]
             [metabase.driver.util :as driver.u]
             [metabase.models.interface :as mi]
             [metabase.models.permissions :as perms]
             [metabase.models.permissions-group :as perms-group]
             [metabase.models.secret :as secret :refer [Secret]]
+            [metabase.models.serialization.base :as serdes.base]
+            [metabase.models.serialization.hash :as serdes.hash]
             [metabase.plugins.classloader :as classloader]
             [metabase.util :as u]
             [metabase.util.i18n :refer [trs]]
@@ -52,13 +55,12 @@
 
 (defn- post-select [{driver :engine, :as database}]
   (cond-> database
-    (driver/initialized? driver)
     ;; TODO - this is only really needed for API responses. This should be a `hydrate` thing instead!
-    (as-> db* ; database from outer cond->
-        (assoc db* :features (driver.u/features driver database))
-        (if (:details db*)
-          (driver/normalize-db-details driver db*)
-          db*))))
+    (driver.impl/registered? driver)
+    (assoc :features (driver.u/features driver database))
+
+    (and (driver.impl/registered? driver) (:details database))
+    (->> (driver/normalize-db-details driver))))
 
 (defn- delete-orphaned-secrets!
   "Delete Secret instances from the app DB, that will become orphaned when `database` is deleted. For now, this will
@@ -184,10 +186,7 @@
 
 (defn- perms-objects-set [{db-id :id} read-or-write]
   #{(case read-or-write
-      ;; We should let a user read a DB if they have write perms for the DB details *or* self-service data access.
-      ;; Since a user can have one or the other, we use `mi/has-any-permissions?` to check both read and write permission
-      ;; sets in the `can-read?` implementation.
-      :read (perms/data-perms-path db-id)
+      :read  (perms/data-perms-path db-id)
       :write (perms/db-details-write-perms-path db-id))})
 
 (u/strict-extend (class Database)
@@ -210,10 +209,11 @@
   mi/IObjectPermissions
   (merge mi/IObjectPermissionsDefaults
          {:perms-objects-set perms-objects-set
-          :can-read?         (mi/has-any-permissions?
-                              (partial mi/current-user-has-partial-permissions? :read)
-                              (partial mi/current-user-has-full-permissions? :write))
-          :can-write?        (partial mi/current-user-has-full-permissions? :write)}))
+          :can-read?         (partial mi/current-user-has-partial-permissions? :read)
+          :can-write?        (partial mi/current-user-has-full-permissions? :write)})
+
+  serdes.hash/IdentityHashable
+  {:identity-hash-fields (constantly [:name :engine])})
 
 
 ;;; ---------------------------------------------- Hydration / Util Fns ----------------------------------------------
@@ -278,3 +278,29 @@
                              details
                              (sensitive-fields-for-db db)))))
     json-generator)))
+
+;;; ------------------------------------------------ Serialization ----------------------------------------------------
+
+(defmethod serdes.base/extract-one "Database"
+  [_model-name {secrets :database/secrets :or {secrets :exclude}} entity]
+  ;; TODO Support alternative encryption of secret database details.
+  ;; There's one optional foreign key: creator_id. Resolve it as an email.
+  (cond-> (serdes.base/extract-one-basics "Database" entity)
+    (:creator_id entity) (assoc :creator_id (db/select-one-field :email 'User :id (:creator_id entity)))
+    (= :exclude secrets) (dissoc :details)))
+
+(defmethod serdes.base/serdes-entity-id "Database"
+  [_ {:keys [name]}]
+  name)
+
+(defmethod serdes.base/serdes-generate-path "Database"
+  [_ {:keys [name]}]
+  [{:model "Database" :id name}])
+
+(defmethod serdes.base/load-find-local "Database"
+  [[{:keys [id]}]]
+  (db/select-one-field :id Database :name id))
+
+(defmethod serdes.base/load-xform "Database" [{:keys [creator_id] :as entity}]
+  (cond-> (serdes.base/load-xform-basics entity)
+    creator_id (assoc :creator_id (db/select-one-field :id 'User :email creator_id))))

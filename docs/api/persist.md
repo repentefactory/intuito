@@ -1,4 +1,11 @@
+---
+title: "Persist"
+summary: "API endpoints for Persist."
+---
+
 # Persist
+
+API endpoints for Persist.
 
   - [GET /api/persist/](#get-apipersist)
   - [GET /api/persist/:persisted-info-id](#get-apipersistpersisted-info-id)
@@ -11,13 +18,9 @@
 
 List the entries of [[PersistedInfo]] in order to show a status page.
 
-You must be a superuser to do this.
-
 ## `GET /api/persist/:persisted-info-id`
 
 Fetch a particular [[PersistedInfo]] by id.
-
-You must be a superuser to do this.
 
 ### PARAMS:
 
@@ -26,8 +29,6 @@ You must be a superuser to do this.
 ## `GET /api/persist/card/:card-id`
 
 Fetch a particular [[PersistedInfo]] by card-id.
-
-You must be a superuser to do this.
 
 ### PARAMS:
 
@@ -38,23 +39,21 @@ You must be a superuser to do this.
 Disable global setting to allow databases to persist models. This will remove all tasks to refresh tables, remove
   that option from databases which might have it enabled, and delete all cached tables.
 
-You must be a superuser to do this.
-
 ## `POST /api/persist/enable`
 
 Enable global setting to allow databases to persist models.
 
-You must be a superuser to do this.
-
 ## `POST /api/persist/set-interval`
 
-Set the interval (in hours) to refresh persisted models. Shape should be JSON like {hours: 4}.
-
-You must be a superuser to do this.
+Set the interval (in hours) to refresh persisted models.
+   Anchor can be provided to set the time to begin the interval (local to reporting-timezone or system).
+   Shape should be JSON like {hours: 4, anchor: 16:45}.
 
 ### PARAMS:
 
-*  **`hours`** Value must be an integer representing hours greater than or equal to one and less than or equal to twenty-four
+*  **`hours`** value may be nil, or if non-nil, Value must be an integer representing hours greater than or equal to one and less than or equal to twenty-four
+
+*  **`anchor`** value may be nil, or if non-nil, Value must be a string representing a time in format HH:mm
 
 *  **`_body`**
 

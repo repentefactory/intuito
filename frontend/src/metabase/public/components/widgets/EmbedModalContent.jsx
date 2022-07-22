@@ -37,16 +37,17 @@ const mapStateToProps = (state, props) => ({
 class EmbedModalContent extends Component {
   constructor(props) {
     super(props);
+    const displayOptions = {
+      font: null,
+      theme: null,
+      bordered: true,
+      titled: true,
+    };
     this.state = {
       pane: "preview",
       embedType: null,
       embeddingParams: props.resource.embedding_params || {},
-      displayOptions: {
-        theme: null,
-        bordered: true,
-        titled: true,
-      },
-
+      displayOptions,
       parameterValues: {},
     };
   }

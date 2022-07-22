@@ -1,3 +1,8 @@
+---
+title: "Card"
+summary: "/api/card endpoints."
+---
+
 # Card
 
 /api/card endpoints.
@@ -98,6 +103,8 @@ Create a new `Card`.
 
 *  **`visualization_settings`** value must be a map.
 
+*  **`parameters`** value may be nil, or if non-nil, value must be an array. Each parameter must be a map with String :id key
+
 *  **`description`** value may be nil, or if non-nil, value must be a non-blank string.
 
 *  **`collection_position`** value may be nil, or if non-nil, value must be an integer greater than zero.
@@ -112,14 +119,14 @@ Create a new `Card`.
 
 *  **`dataset_query`** 
 
+*  **`parameter_mappings`** value may be nil, or if non-nil, value must be an array. Each parameter mapping must be a String :parameter_id key
+
 *  **`display`** value must be a non-blank string.
 
 ## `POST /api/card/:card-id/persist`
 
 Mark the model (card) as persisted. Runs the query and saves it to the database backing the card and hot swaps this
   query in place of the model's query.
-
-You must be a superuser to do this.
 
 ### PARAMS:
 
@@ -170,8 +177,6 @@ Run the query associated with a Card, and return its results as a file in the sp
 
 Refresh the persisted model caching `card-id`.
 
-You must be a superuser to do this.
-
 ### PARAMS:
 
 *  **`card-id`** value must be an integer greater than zero.
@@ -180,8 +185,6 @@ You must be a superuser to do this.
 
 Unpersist this model. Deletes the persisted table backing the model and all queries after this will use the card's
   query rather than the saved version of the query.
-
-You must be a superuser to do this.
 
 ### PARAMS:
 
@@ -233,6 +236,8 @@ Update a `Card`.
 ### PARAMS:
 
 *  **`visualization_settings`** value may be nil, or if non-nil, value must be a map.
+
+*  **`parameters`** value may be nil, or if non-nil, value must be an array. Each parameter must be a map with String :id key
 
 *  **`dataset`** value may be nil, or if non-nil, value must be a boolean.
 

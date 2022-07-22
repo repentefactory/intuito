@@ -11,10 +11,10 @@ type Props = {
   onFilterChange: (filter: any[]) => void;
   onCommit: (filter: any[]) => void;
 
-  isSidebar?: boolean;
   minWidth?: number | null;
   maxWidth?: number | null;
   primaryColor?: string;
+  checkedColor?: string;
 };
 
 export default class FilterPopoverPicker extends React.Component<Props> {
@@ -28,7 +28,7 @@ export default class FilterPopoverPicker extends React.Component<Props> {
 
   handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter") {
-      this.props.onCommit(this.props.filter);
+      this.props.filter.isValid() && this.props.onCommit(this.props.filter);
     }
   };
 
@@ -38,10 +38,10 @@ export default class FilterPopoverPicker extends React.Component<Props> {
       filter,
       onFilterChange,
       onCommit,
-      isSidebar,
       minWidth,
       maxWidth,
       primaryColor,
+      checkedColor,
     } = this.props;
 
     const setValue = (index: number, value: any) => {
@@ -62,7 +62,6 @@ export default class FilterPopoverPicker extends React.Component<Props> {
         onFilterChange={onFilterChange}
         minWidth={minWidth}
         maxWidth={maxWidth}
-        isSidebar={isSidebar}
       />
     ) : field?.isBoolean() ? (
       <BooleanPicker
@@ -79,7 +78,7 @@ export default class FilterPopoverPicker extends React.Component<Props> {
         onCommit={onCommit}
         minWidth={minWidth}
         maxWidth={maxWidth}
-        isSidebar={isSidebar}
+        checkedColor={checkedColor}
       />
     );
   }

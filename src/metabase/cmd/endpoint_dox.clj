@@ -18,13 +18,24 @@
 
 ;;;; API docs page title
 
-(defn handle-enterprise-ns
+(defn- handle-enterprise-ns
   "Some paid endpoints have different formatting. This way we don't combine
   the api/table endpoint with sandbox.api.table, for example."
   [endpoint]
   (if (str/includes? endpoint "metabase-enterprise")
     (str/split endpoint #"metabase-enterprise.")
     (str/split endpoint #"\.")))
+
+(def initialisms "Used to format initialisms/acronyms in generated docs." '["SSO" "GTAP" "LDAP" "SQL" "JSON"])
+
+(defn capitalize-initialisms
+  "Converts initialisms to upper case."
+  [name initialisms]
+  (let [re (re-pattern (str "(?i)(?:" (str/join "|" initialisms) ")"))
+        matches (re-seq re name)]
+    (if matches
+      (reduce (fn [n m] (str/replace n m (str/upper-case m))) name matches)
+      name)))
 
 (defn- endpoint-ns-name
   "Creates a name for endpoints in a namespace, like all the endpoints for Alerts.
@@ -35,9 +46,43 @@
       name
       handle-enterprise-ns
       last
-      str/capitalize
+      u/capitalize-first-char
       (str/replace #"(.api.|-)" " ")
-      (str/replace "Sso sso" "SSO")))
+      (capitalize-initialisms initialisms)
+      (str/replace "SSO SSO" "SSO")))
+
+(defn- handle-quotes
+  "Used for formatting YAML string punctuation for frontmatter descriptions."
+  [s]
+  (-> s
+      (str/replace #"\"" "'")
+      str/split-lines
+      (#(str/join "\n  " %))))
+
+(defn- format-frontmatter-description
+  "Formats description for YAML frontmatter."
+  [desc]
+  (str "|\n  " (handle-quotes desc)))
+
+(defn- get-description
+  "Used to grab namespace description, if it exists."
+  [ep ep-data]
+  (let [desc (-> ep-data
+                 first
+                 :ns
+                 meta
+                 :doc
+                 u/add-period)]
+    (if (str/blank? desc)
+      (u/add-period (str "API endpoints for " ep))
+      desc)))
+
+(defn- endpoint-page-frontmatter
+  "Formats frontmatter, which includes title and summary, if any."
+  [ep ep-data]
+  (let [desc (format-frontmatter-description (get-description ep ep-data))]
+    (str "---\ntitle: \"" ep "\""
+         "\nsummary: " desc "\n---\n\n")))
 
 (defn- endpoint-page-title
   "Creates a page title for a set of endpoints, e.g., `# Card`."
@@ -48,8 +93,8 @@
 
 (defn- endpoint-page-description
   "If there is a namespace docstring, include the docstring with a paragraph break."
-  [ep-data]
-  (let [desc (u/add-period (:doc (meta (:ns (first ep-data)))))]
+  [ep ep-data]
+  (let [desc (get-description ep ep-data)]
     (if (str/blank? desc)
       desc
       (str desc "\n\n"))))
@@ -137,8 +182,9 @@
   followed by the endpoint and their parameter descriptions."
   [ep ep-data]
   (apply str
+         (endpoint-page-frontmatter ep ep-data)
          (endpoint-page-title ep)
-         (endpoint-page-description ep-data)
+         (endpoint-page-description ep ep-data)
          (route-toc ep-data)
          (endpoint-docs ep-data)
          (endpoint-footer ep-data)))
@@ -153,7 +199,7 @@
                  str/lower-case)]
     (str dir file ext)))
 
-(defn- build-endpoint-link
+(defn build-endpoint-link
   "Creates a link to the page for each endpoint. Used to build links
   on the API index page at `docs/api-documentation.md`."
   [ep ep-data]
@@ -162,7 +208,7 @@
 
 (defn- build-index
   "Creates a string that lists links to all endpoint groups,
-  e.g., - [Activity](docs/api/activity.md)."
+  e.g., - [Activity](api/activity.md)."
   [endpoints]
   (str/join "\n" (map (fn [[ep ep-data]] (build-endpoint-link ep ep-data)) endpoints)))
 
