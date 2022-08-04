@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 import "./Calendar.css";
 
 import cx from "classnames";
-import moment, { Moment } from "moment";
+import moment, { Moment } from "moment-timezone";
 import { t } from "ttag";
 import Icon from "metabase/components/Icon";
 import { alpha, color } from "metabase/lib/colors";
@@ -176,6 +176,7 @@ export default class Calendar extends Component<Props, State> {
   renderCalender(current?: Moment, side?: "left" | "right") {
     return (
       <div
+        data-testid="calendar"
         className={cx("Calendar", {
           "Calendar--range":
             (this.props.isRangePicker &&

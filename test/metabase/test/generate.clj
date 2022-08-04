@@ -5,8 +5,8 @@
             [metabase.mbql.util :as mbql.u]
             [metabase.models :refer [Activity Card Collection Dashboard DashboardCard DashboardCardSeries Database
                                      Dimension Field Metric NativeQuerySnippet PermissionsGroup
-                                     PermissionsGroupMembership Pulse PulseCard PulseChannel Segment Table
-                                     Timeline TimelineEvent User]]
+                                     PermissionsGroupMembership Pulse PulseCard PulseChannel PulseChannelRecipient
+                                     Segment Table Timeline TimelineEvent User]]
             [reifyhealth.specmonstah.core :as rs]
             [reifyhealth.specmonstah.spec-gen :as rsg]
             [talltale.core :as tt]
@@ -157,6 +157,7 @@
 (s/def ::schedule_type ::not-empty-string)
 
 (s/def ::pulse-channel (s/keys :req-un [::id ::channel_type ::details ::schedule_type]))
+(s/def ::pulse-channel-recipient (s/keys :req-un [::id]))
 
 (s/def ::icon           (s/and ::name #(< (count %) 100)))
 (s/def ::time_matters   boolean?)
@@ -243,11 +244,17 @@
                                   :spec      ::pulse-card
                                   :insert!   {:model PulseCard}
                                   :relations {:pulse_id [:pulse :id]
-                                              :card_id  [:card :id]}}
+                                              :card_id  [:card :id]
+                                              :dashboard_card_id [:dashboard-card :id]}}
    :pulse-channel                {:prefix    :pulse-channel
                                   :spec      ::pulse-channel
                                   :insert!   {:model PulseChannel}
                                   :relations {:pulse_id [:pulse :id]}}
+   :pulse-channel-recipient      {:prefix    :pcr
+                                  :spec      ::pulse-channel-recipient
+                                  :insert!   {:model PulseChannelRecipient}
+                                  :relations {:pulse_channel_id [:pulse-channel :id]
+                                              :user_id          [:core-user     :id]}}
    :timeline                     {:prefix    :timeline
                                   :spec      ::timeline
                                   :insert!   {:model Timeline}
@@ -274,6 +281,11 @@
 
 (def ^:private unique-name (mbql.u/unique-name-generator))
 
+(defn- unique-email [email]
+  (let [at (.indexOf email "@")]
+    (str (unique-name (subs email 0 at))
+         (subs email at))))
+
 (def ^:private field-positions (atom {:table-fields {}}))
 (defn- adjust
   "Some fields have to be semantically correct, or db correct. fields have position, and they do have to be unique.
@@ -288,12 +300,24 @@
            (-> (swap! field-positions update-in [:table-fields (:table_id visit-val)] (fnil inc 0))
                (get-in [:table-fields (:table_id visit-val)])))
 
+    ;; Users' emails need to be unique. This enforces it, and appends junk to before the @ if needed.
+    (= ent-type :core_user)
+    (update :email unique-email)
+
+    ;; Database names need to be unique. This enforces it, and appends junk to names if needed.
+    (= ent-type :database)
+    (update :name unique-name)
+
     ;; Table names need to be unique within their database. This enforces it, and appends junk to names if needed.
     (= ent-type :table)
     (update :name unique-name)
 
     ;; Field names need to be unique within their table. This enforces it, and appends junk to names if needed.
     (= ent-type :field)
+    (update :name unique-name)
+
+    ;; Native Query Snippet names need to be unique. This enforces it, and appends junk to names if needed.
+    (= ent-type :native-query-snippet)
     (update :name unique-name)
 
     ;; [Field ID, Dimension name] pairs need to be unique. This enforces it, and appends junk to names if needed.

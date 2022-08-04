@@ -3,7 +3,7 @@ import React from "react";
 
 import Calendar from "metabase/components/Calendar";
 
-import moment from "moment";
+import moment from "moment-timezone";
 import Filter from "metabase-lib/lib/queries/structured/Filter";
 import { TimeContainer } from "./RangeDatePicker.styled";
 import {
@@ -40,7 +40,7 @@ export const BetweenPicker = ({
     );
   }
   return (
-    <div className={className}>
+    <div className={className} data-testid="between-date-picker">
       <TimeContainer>
         <div>
           <SpecificDatePicker
