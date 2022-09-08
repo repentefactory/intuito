@@ -21,7 +21,7 @@ title: Troubleshooting viewing and editing questions and dashboards
 
 **Explanation**
 
-Moving a dashboard to a different collection doesn't move the dashboard's questions into that collection. 
+Moving a dashboard to a different collection doesn't move the dashboard's questions into that collection.
 
 If the saved questions are stored in a restricted collection (such as someone's personal folder), then other groups won't be able to view those cards.
 
@@ -31,7 +31,7 @@ Someone with edit permissions (your Metabase admin is probably a safe bet) will 
 
 - [I can't view or edit queries from the SQL editor][sql-access].
 - [I'm getting a "permission denied" error message][permission-denied].
-- [I can't save my question or dashboard][proxies].
+- [I can't save my question or dashboard](./proxies.md).
 - [I can't see my tables][cant-see-tables].
 
 ## Are you still stuck?
@@ -41,15 +41,14 @@ If you can’t solve your problem using the troubleshooting guides:
 - Search or ask the [Metabase community][discourse].
 - Search for [known bugs or limitations][known-issues].
 
-[admin-permissions]: ../administration-guide/05-setting-permissions.html
-[block-access]: ../administration-guide/data-permissions.html#block-access
-[cant-see-tables]: ./cant-see-tables.html
-[collection-permissions]: ../administration-guide/06-collections.html
-[data-permissions]: ../administration-guide/data-permissions.html
+[admin-permissions]: ../permissions/introduction.md
+[block-access]: ../permissions/data.md#block-access
+[cant-see-tables]: ./cant-see-tables.md
+[collection-permissions]: ../permissions/collections.md
+[data-permissions]: ../permissions/data.md
 [discourse]: https://discourse.metabase.com/
-[known-issues]: ./known-issues.html
-[learn-permissions]: /learn/permissions/index.html
-[permission-denied]: ./data-permissions#getting-a-permission-denied-error-message
-[proxies]: ./proxies.html
-[sql-access]: ./data-permissions#a-user-group-cant-access-the-sql-editor
-[troubleshooting-data-permissions]: ./data-permissions.html
+[known-issues]: ./known-issues.md
+[learn-permissions]: https://www.metabase.com/learn/permissions/index.html
+[permission-denied]: ./data-permissions.md#getting-a-permission-denied-error-message
+[sql-access]: ./data-permissions.md#a-user-group-cant-access-the-sql-editor
+[troubleshooting-data-permissions]: ./data-permissions.md

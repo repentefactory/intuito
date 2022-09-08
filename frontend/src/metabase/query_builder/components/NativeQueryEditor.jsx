@@ -4,6 +4,7 @@ import React, { Component } from "react";
 import cx from "classnames";
 import "ace/ace";
 import "ace/ext-language_tools";
+import "ace/ext-searchbox";
 import "ace/mode-sql";
 import "ace/mode-mysql";
 import "ace/mode-pgsql";
@@ -25,7 +26,7 @@ import ExplicitSize from "metabase/components/ExplicitSize";
 import Snippets from "metabase/entities/snippets";
 import SnippetCollections from "metabase/entities/snippet-collections";
 import SnippetModal from "metabase/query_builder/components/template_tags/SnippetModal";
-import SyncedParametersList from "metabase/parameters/components/SyncedParametersList/SyncedParametersList";
+import { ResponsiveParametersList } from "./ResponsiveParametersList";
 import NativeQueryEditorSidebar from "./NativeQueryEditor/NativeQueryEditorSidebar";
 import VisibilityToggler from "./NativeQueryEditor/VisibilityToggler";
 import RightClickPopover from "./NativeQueryEditor/RightClickPopover";
@@ -53,6 +54,7 @@ class NativeQueryEditor extends Component {
     this.state = {
       initialHeight: calcInitialEditorHeight({ query, viewHeight }),
       isSelectedTextPopoverOpen: false,
+      mobileShowParameterList: false,
     };
 
     // Ace sometimes fires multiple "change" events in rapid succession
@@ -65,12 +67,17 @@ class NativeQueryEditor extends Component {
 
   static defaultProps = {
     isOpen: false,
+    enableRun: true,
     cancelQueryOnLeave: true,
+    resizable: true,
   };
 
   UNSAFE_componentWillMount() {
     const { question, setIsNativeEditorOpen, isInitiallyOpen } = this.props;
-    setIsNativeEditorOpen(!question || !question.isSaved() || isInitiallyOpen);
+
+    setIsNativeEditorOpen?.(
+      !question || !question.isSaved() || isInitiallyOpen,
+    );
   }
 
   componentDidMount() {
@@ -160,7 +167,7 @@ class NativeQueryEditor extends Component {
 
   componentWillUnmount() {
     if (this.props.cancelQueryOnLeave) {
-      this.props.cancelQuery();
+      this.props.cancelQuery?.();
     }
     document.removeEventListener("keydown", this.handleKeyDown);
     document.removeEventListener("contextmenu", this.handleRightClick);
@@ -171,16 +178,18 @@ class NativeQueryEditor extends Component {
 
   handleCursorChange = _.debounce((e, { cursor }) => {
     this.swapInCorrectCompletors(cursor);
-    this.props.setNativeEditorSelectedRange(this._editor.getSelectionRange());
+    if (this.props.setNativeEditorSelectedRange) {
+      this.props.setNativeEditorSelectedRange(this._editor.getSelectionRange());
+    }
   }, 100);
 
   handleKeyDown = e => {
-    const { isRunning, cancelQuery } = this.props;
+    const { isRunning, cancelQuery, enableRun } = this.props;
 
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      if (isRunning) {
+      if (isRunning && cancelQuery) {
         cancelQuery();
-      } else {
+      } else if (enableRun) {
         this.runQuery();
       }
     }
@@ -258,7 +267,11 @@ class NativeQueryEditor extends Component {
     this._lastAutoComplete = { timestamp: 0, prefix: null, results: null };
 
     aceLanguageTools.addCompleter({
-      getCompletions: async (editor, session, pos, prefix, callback) => {
+      getCompletions: async (_editor, _session, _pos, prefix, callback) => {
+        if (!this.props.autocompleteResultsFn) {
+          return callback(null, []);
+        }
+
         try {
           let { results, timestamp } = this._lastAutoComplete;
           const cacheHit =
@@ -267,7 +280,11 @@ class NativeQueryEditor extends Component {
           if (!cacheHit) {
             // HACK: call this.props.autocompleteResultsFn rather than caching the prop since it might change
             results = await this.props.autocompleteResultsFn(prefix);
-            this._lastAutoComplete = { timestamp: Date.now(), prefix, results };
+            this._lastAutoComplete = {
+              timestamp: Date.now(),
+              prefix,
+              results,
+            };
           }
 
           // transform results of the API call into what ACE expects
@@ -390,6 +407,12 @@ class NativeQueryEditor extends Component {
       .update(setDatasetQuery);
   };
 
+  handleFilterButtonClick = () => {
+    this.setState({
+      mobileShowParameterList: !this.state.mobileShowParameterList,
+    });
+  };
+
   render() {
     const {
       query,
@@ -402,15 +425,17 @@ class NativeQueryEditor extends Component {
       hasEditingSidebar = true,
       resizableBoxProps = {},
       snippetCollections = [],
+      resizable,
+      requireWriteback = false,
     } = this.props;
 
     const parameters = query.question().parameters();
 
-    const dragHandle = (
+    const dragHandle = resizable ? (
       <div className="NativeQueryEditorDragHandleWrapper">
         <div className="NativeQueryEditorDragHandle" />
       </div>
-    );
+    ) : null;
 
     const canSaveSnippets = snippetCollections.some(
       collection => collection.can_write,
@@ -427,19 +452,17 @@ class NativeQueryEditor extends Component {
                 readOnly={readOnly}
                 setDatabaseId={this.setDatabaseId}
                 setTableId={this.setTableId}
+                requireWriteback={requireWriteback}
               />
             </div>
             {hasParametersList && (
-              <SyncedParametersList
-                className="mt1 mx2"
+              <ResponsiveParametersList
                 parameters={parameters}
                 setParameterValue={setParameterValue}
                 setParameterIndex={this.setParameterIndex}
-                isEditing
-                commitImmediately
               />
             )}
-            {query.hasWritePermission() && (
+            {query.hasWritePermission() && this.props.setIsNativeEditorOpen && (
               <VisibilityToggler
                 className={!isNativeEditorOpen ? "hide sm-show" : ""}
                 isOpen={isNativeEditorOpen}

@@ -134,6 +134,10 @@ function setup() {
           });
 
           createTargetDashboard().then(targetDashboardId => {
+            cy.intercept("GET", `/api/dashboard/${targetDashboardId}`).as(
+              "targetDashboardLoaded",
+            );
+
             cy.wrap(targetDashboardId).as("targetDashboardId");
 
             // Create a click behavior and resize the question card
@@ -144,8 +148,8 @@ function setup() {
                   card_id: questionId,
                   row: 0,
                   col: 0,
-                  sizeX: 12,
-                  sizeY: 10,
+                  size_x: 12,
+                  size_y: 10,
                   parameter_mappings: [
                     {
                       parameter_id: CATEGORY_FILTER_PARAMETER_ID,
@@ -257,8 +261,8 @@ function createTargetDashboard() {
               card_id,
               row: 0,
               col: 0,
-              sizeX: 12,
-              sizeY: 10,
+              size_x: 12,
+              size_y: 10,
               parameter_mappings: [
                 {
                   parameter_id: "dd19ec03",
@@ -278,6 +282,7 @@ function createTargetDashboard() {
 function visitSourceDashboard() {
   cy.get("@sourceDashboardId").then(id => {
     visitDashboard(id);
+    cy.wait("@targetDashboardLoaded");
   });
 }
 

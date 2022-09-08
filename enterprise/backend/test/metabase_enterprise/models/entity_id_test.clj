@@ -5,11 +5,12 @@
   This file makes it impossible to forget to add entity_id to new entities. It tests that every entity is either
   explicitly excluded, or has the :entity_id property."
   (:require
-    [clojure.test :refer :all]
-    metabase.db.data-migrations
-    metabase.models
-    metabase.models.revision-test
-    [toucan.models :refer [IModel properties]]))
+   [clojure.test :refer :all]
+   metabase.db.data-migrations
+   metabase.models
+   metabase.models.revision-test
+   [metabase.models.serialization.hash :as serdes.hash]
+   [toucan.models :refer [IModel]]))
 
 (comment metabase.models/keep-me
          metabase.db.data-migrations/keep-me
@@ -30,6 +31,9 @@
   - exported as a child of something else (eg. timeline_event under timeline)
   so they don't need a generated entity_id."
   #{metabase.db.data_migrations.DataMigrationsInstance
+    metabase.models.action.ActionInstance
+    metabase.models.action.HTTPActionInstance
+    metabase.models.action.QueryActionInstance
     metabase.models.activity.ActivityInstance
     metabase.models.application_permissions_revision.ApplicationPermissionsRevisionInstance
     metabase.models.bookmark.BookmarkOrderingInstance
@@ -39,6 +43,9 @@
     metabase.models.collection.root.RootCollection
     metabase.models.collection_permission_graph_revision.CollectionPermissionGraphRevisionInstance
     metabase.models.dashboard_card_series.DashboardCardSeriesInstance
+    metabase.models.emitter.CardEmitterInstance
+    metabase.models.emitter.DashboardEmitterInstance
+    metabase.models.emitter.EmitterInstance
     metabase.models.field_values.FieldValuesInstance
     metabase.models.login_history.LoginHistoryInstance
     metabase.models.metric_important_field.MetricImportantFieldInstance
@@ -78,4 +85,4 @@
   (doseq [model (->> (extenders IModel)
                      (remove entities-not-exported))]
     (testing (format "Model %s should implement IdentityHashable" (.getSimpleName model))
-      (is (extends? metabase.models.serialization.hash/IdentityHashable model)))))
+      (is (extends? serdes.hash/IdentityHashable model)))))

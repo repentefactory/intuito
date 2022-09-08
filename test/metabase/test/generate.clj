@@ -127,8 +127,8 @@
 (s/def ::row pos-int?)
 (s/def ::col pos-int?)
 (s/def ::col pos-int?)
-(s/def ::sizeX pos-int?)
-(s/def ::sizeY pos-int?)
+(s/def ::size_x pos-int?)
+(s/def ::size_y pos-int?)
 (s/def ::parameter_mappings #{[{}]})
 
 (s/def ::core-user (s/keys :req-un [::id ::first_name ::last_name ::email ::password]))
@@ -149,7 +149,7 @@
 (s/def ::native-query-snippet (s/keys :req-un [::id ::name ::description ::content]))
 (s/def ::dashboard (s/keys :req-un [::id ::name ::description ::parameters]))
 
-(s/def ::dashboard-card (s/keys :req-un [::id ::sizeX ::sizeY ::row ::col ::parameter_mappings ::visualization_settings ]))
+(s/def ::dashboard-card (s/keys :req-un [::id ::size_x ::size_y ::row ::col ::parameter_mappings ::visualization_settings ]))
 (s/def ::pulse-card (s/keys :req-un [::id ::position]))
 
 
@@ -291,7 +291,7 @@
   "Some fields have to be semantically correct, or db correct. fields have position, and they do have to be unique.
   in the table-field-position, for now it's just incrementing forever, without scoping by table_id (which would be
   cool)."
-  [sm-db {:keys [schema-opts attrs ent-type visit-val] :as visit-opts}]
+  [_sm-db {:keys [ent-type visit-val] :as _visit-opts}]
   (cond-> visit-val
     ;; Fields have a unique position per table. Keep a counter of the number of fields per table and update it, giving
     ;; the new value to the current field. Defaults to 1.
@@ -327,7 +327,7 @@
     (and (:description visit-val) (coin-toss 0.2))
     (dissoc :description)))
 
-(defn- remove-ids [_ {:keys [visit-val] :as visit-opts}]
+(defn- remove-ids [_ {:keys [visit-val] :as _visit-opts}]
   (dissoc visit-val :id))
 
 (defn insert!
