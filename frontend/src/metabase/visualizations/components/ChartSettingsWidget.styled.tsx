@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
 
-import Icon, { IconProps } from "metabase/components/Icon";
+import Icon from "metabase/components/Icon";
 
 import { color } from "metabase/lib/colors";
 
@@ -12,6 +12,7 @@ export const Root = styled.div<{
   noPadding?: boolean;
   inline?: boolean;
   marginBottom?: string;
+  borderBottom?: boolean;
 }>`
   ${props =>
     !props.noPadding &&
@@ -40,6 +41,7 @@ export const Root = styled.div<{
     `}
   ${props =>
     props.inline &&
+    !props.hidden &&
     css`
       display: flex;
       flex-direction: row;
@@ -50,6 +52,13 @@ export const Root = styled.div<{
         display: inline-flex;
         margin-bottom: 0;
       }
+    `}
+
+    ${props =>
+    props.borderBottom &&
+    css`
+      padding-bottom: 1rem;
+      border-bottom: 1px solid ${color("border")};
     `}
 
   input, .AdminSelect {
@@ -65,12 +74,14 @@ export const Root = styled.div<{
 export const Title = styled.label<VariantProp>`
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  line-height: 0.875rem;
 
   ${props =>
     props.variant === "default" &&
     css`
-      font-weight: 700;
+      line-height: normal;
     `}
 `;
 

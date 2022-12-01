@@ -3,16 +3,13 @@ import { t } from "ttag";
 
 import Modal from "metabase/components/Modal";
 import EntityMenu from "metabase/components/EntityMenu";
-import CreateDashboardModal from "metabase/components/CreateDashboardModal";
 
 import * as Urls from "metabase/lib/urls";
 
-import DataApps from "metabase/entities/data-apps";
+import CreateCollectionModal from "metabase/collections/containers/CreateCollectionModal";
+import CreateDashboardModal from "metabase/dashboard/containers/CreateDashboardModal";
 
-import CollectionCreate from "metabase/collections/containers/CollectionCreate";
-import CreateDataAppModal from "metabase/writeback/containers/CreateDataAppModal";
-
-import { Collection, CollectionId } from "metabase-types/api";
+import type { CollectionId } from "metabase-types/api";
 
 type ModalType = "new-app" | "new-dashboard" | "new-collection";
 
@@ -26,7 +23,6 @@ export interface NewItemMenuProps {
   hasDataAccess: boolean;
   hasNativeWrite: boolean;
   hasDatabaseWithJsonEngine: boolean;
-  onChangeLocation: (location: string) => void;
   onCloseNavbar: () => void;
 }
 
@@ -40,7 +36,6 @@ const NewItemMenu = ({
   hasDataAccess,
   hasNativeWrite,
   hasDatabaseWithJsonEngine,
-  onChangeLocation,
   onCloseNavbar,
 }: NewItemMenuProps) => {
   const [modal, setModal] = useState<ModalType>();
@@ -48,14 +43,6 @@ const NewItemMenu = ({
   const handleModalClose = useCallback(() => {
     setModal(undefined);
   }, []);
-
-  const handleCollectionSave = useCallback(
-    (collection: Collection) => {
-      handleModalClose();
-      onChangeLocation(Urls.collection(collection));
-    },
-    [handleModalClose, onChangeLocation],
-  );
 
   const menuItems = useMemo(() => {
     const items = [];
@@ -84,15 +71,6 @@ const NewItemMenu = ({
         event: `${analyticsContext};New SQL Query Click;`,
         onClose: onCloseNavbar,
       });
-
-      // we should probably get more granular with who sees this
-      items.push({
-        title: t`Action`,
-        icon: "play",
-        link: "/action/create",
-        event: `${analyticsContext};New Action Click;`,
-        onClose: onCloseNavbar,
-      });
     }
 
     items.push(
@@ -108,13 +86,17 @@ const NewItemMenu = ({
         action: () => setModal("new-collection"),
         event: `${analyticsContext};New Collection Click;`,
       },
-      {
-        title: t`App`,
-        icon: "star",
-        action: () => setModal("new-app"),
-        event: `${analyticsContext};New App Click;`,
-      },
     );
+
+    if (hasNativeWrite) {
+      items.push({
+        title: t`Model`,
+        icon: "model",
+        link: "/model/new",
+        event: `${analyticsContext};New Model Click;`,
+        onClose: onCloseNavbar,
+      });
+    }
 
     return items;
   }, [
@@ -135,22 +117,23 @@ const NewItemMenu = ({
         tooltip={triggerTooltip}
       />
       {modal && (
-        <Modal onClose={handleModalClose}>
+        <>
           {modal === "new-collection" ? (
-            <CollectionCreate
-              collectionId={collectionId}
-              onClose={handleModalClose}
-              onSaved={handleCollectionSave}
-            />
+            <Modal onClose={handleModalClose}>
+              <CreateCollectionModal
+                collectionId={collectionId}
+                onClose={handleModalClose}
+              />
+            </Modal>
           ) : modal === "new-dashboard" ? (
-            <CreateDashboardModal
-              collectionId={collectionId}
-              onClose={handleModalClose}
-            />
-          ) : modal === "new-app" ? (
-            <CreateDataAppModal onClose={handleModalClose} />
+            <Modal onClose={handleModalClose}>
+              <CreateDashboardModal
+                collectionId={collectionId}
+                onClose={handleModalClose}
+              />
+            </Modal>
           ) : null}
-        </Modal>
+        </>
       )}
     </>
   );

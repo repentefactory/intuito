@@ -1,10 +1,10 @@
 ---
-title: "People and groups overview"
+title: "People overview"
 redirect_from:
   - /docs/latest/administration-guide/sso
 ---
 
-# People and groups overview
+# People overview
 
 User accounts, groups, and authentication. For permissions, see [Permissions overview](../permissions/start.md).
 
@@ -26,11 +26,7 @@ Tell Metabase how long it should wait before asking people to log in again.
 
 ## Authentication
 
-Metabase offers several options for single sign-on (SS0) authentication.
-
-### Setting up Single Sign-on (SSO)
-
-We recommend that you set up [Single Sign-on][sso-def] for your Metabase installation.
+Metabase offers several options for single sign-on (SSO) authentication.
 
 ### SSO for Metabase Open Source Edition
 

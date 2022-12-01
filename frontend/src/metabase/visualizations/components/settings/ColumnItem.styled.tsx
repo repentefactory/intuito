@@ -2,8 +2,14 @@ import styled from "@emotion/styled";
 import { color } from "metabase/lib/colors";
 
 import Icon from "metabase/components/Icon";
+import ColorPill from "metabase/core/components/ColorPill";
+import ChartSettingColorPicker from "./ChartSettingColorPicker";
 
-export const ColumnItemRoot = styled.div`
+interface ColumnItemRootProps {
+  isDraggable: boolean;
+}
+
+export const ColumnItemRoot = styled.div<ColumnItemRootProps>`
   margin: 0.5rem 0;
   overflow: hidden;
   display: flex;
@@ -18,7 +24,7 @@ export const ColumnItemRoot = styled.div`
   }
 
   ${props =>
-    props.draggable &&
+    props.isDraggable &&
     `
     cursor: grab;
     &:hover {
@@ -50,7 +56,7 @@ export const ColumnItemContent = styled.div`
 `;
 
 export const ColumnItemContainer = styled.div`
-  padding: 0.5rem;
+  padding: 0.75rem 0.5rem;
   position: relative;
   flex: auto;
   display: flex;
@@ -69,4 +75,9 @@ export const ColumnItemIcon = styled(Icon)`
 
 export const ColumnItemDragHandle = styled(Icon)`
   color: ${color("text-medium")};
+`;
+
+export const ColumnItemColorPicker = styled(ChartSettingColorPicker)`
+  margin-bottom: 0;
+  margin-left: 0.25rem;
 `;

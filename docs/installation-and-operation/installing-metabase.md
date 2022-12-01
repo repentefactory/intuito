@@ -30,9 +30,12 @@ To run a development branch of Metabase, check out our [developer's guide](../de
 
 - [Running on AWS Elastic Beanstalk](running-metabase-on-elastic-beanstalk.md)
 - [Running on Azure Web Apps](running-metabase-on-azure.md)
-- [Running on Heroku](running-metabase-on-heroku.md)
 - [Running on Debian as a service](running-metabase-on-debian.md)
 
 ## Upgrading Metabase
 
 See [Upgrading Metabase](upgrading-metabase.md).
+
+*** 
+
+If you’d like more technical resources to set up your data stack with Metabase, connect with a [Metabase Expert](https://www.metabase.com/partners/).

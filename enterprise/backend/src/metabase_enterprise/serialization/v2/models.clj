@@ -5,9 +5,7 @@
   ["Card"
    "Collection"
    "Dashboard"
-   "DashboardCard"
    "Database"
-   "Dimension"
    "Field"
    "FieldValues"
    "Metric"
@@ -18,5 +16,4 @@
    "Segment"
    "Setting"
    "Table"
-   "Timeline"
-   "TimelineEvent"])
+   "Timeline"])

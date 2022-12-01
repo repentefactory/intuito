@@ -409,6 +409,18 @@ const sidebar = handleActions(
   DEFAULT_SIDEBAR,
 );
 
+const missingActionParameters = handleActions(
+  {
+    [INITIALIZE]: {
+      next: (state, payload) => null,
+    },
+    [RESET]: {
+      next: (state, payload) => null,
+    },
+  },
+  null,
+);
+
 export default combineReducers({
   dashboardId,
   isEditing,
@@ -422,4 +434,5 @@ export default combineReducers({
   isAddParameterPopoverOpen,
   sidebar,
   parameterValuesSearchCache,
+  missingActionParameters,
 });

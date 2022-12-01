@@ -38,7 +38,7 @@ describe("scenarios > question > settings", () => {
       cy.get("@tableOptions")
         .contains("Total")
         .scrollIntoView()
-        .nextAll(".Icon-eye_filled")
+        .nextAll(".Icon-eye_outline")
         .click();
 
       // Add people.category
@@ -116,8 +116,8 @@ describe("scenarios > question > settings", () => {
       // Remove "Total"
       getSidebarColumns()
         .contains("Total")
-        .closest("[draggable=true]")
-        .find(".Icon-eye_filled")
+        .closest("[data-testid^=draggable-item]")
+        .find(".Icon-eye_outline")
         .click();
 
       reloadResults();
@@ -267,5 +267,5 @@ function getSidebarColumns() {
     .scrollIntoView()
     .should("be.visible")
     .parent()
-    .find("[draggable=true]");
+    .find("[data-testid^=draggable-item]");
 }

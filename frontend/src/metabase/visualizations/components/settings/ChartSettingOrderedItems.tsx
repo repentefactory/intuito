@@ -1,16 +1,16 @@
 import React, { ReactElement } from "react";
 
+import type { SortableElementProps } from "react-sortable-hoc";
 import {
   SortableContainer,
   SortableElement,
 } from "metabase/components/sortable";
 
-import type { SortableElementProps } from "react-sortable-hoc";
-
 import ColumnItem from "./ColumnItem";
 
 interface SortableItem {
   enabled: boolean;
+  color?: string;
 }
 
 interface SortableColumnFunctions<T> {
@@ -20,6 +20,7 @@ interface SortableColumnFunctions<T> {
   onAdd?: (item: T) => void;
   onEnable?: (item: T) => void;
   getItemName: (item: T) => string;
+  onColorChange?: (item: T, color: string) => void;
 }
 
 interface SortableColumnProps<T> extends SortableColumnFunctions<T> {
@@ -36,6 +37,7 @@ const SortableColumn = SortableElement(function SortableColumn<
   onClick,
   onAdd,
   onEnable,
+  onColorChange,
 }: SortableColumnProps<T>) {
   return (
     <ColumnItem
@@ -49,6 +51,10 @@ const SortableColumn = SortableElement(function SortableColumn<
       onClick={onClick ? () => onClick(item) : null}
       onAdd={onAdd ? () => onAdd(item) : null}
       onEnable={onEnable && !item.enabled ? () => onEnable(item) : null}
+      onColorChange={
+        onColorChange ? (color: string) => onColorChange(item, color) : null
+      }
+      color={item.color}
       draggable
     />
   );
@@ -70,6 +76,7 @@ const SortableColumnList = SortableContainer(function SortableColumnList<
   onRemove,
   onEnable,
   onAdd,
+  onColorChange,
 }: SortableColumnListProps<T>) {
   return (
     <div>
@@ -83,6 +90,7 @@ const SortableColumnList = SortableContainer(function SortableColumnList<
           onRemove={onRemove}
           onEnable={onEnable}
           onAdd={onAdd}
+          onColorChange={onColorChange}
         />
       ))}
     </div>
@@ -111,6 +119,7 @@ export function ChartSettingOrderedItems<T extends SortableItem>({
   onClick,
   getItemName,
   items,
+  onColorChange,
 }: ChartSettingOrderedItemsProps<T>) {
   return (
     <SortableColumnList
@@ -123,6 +132,7 @@ export function ChartSettingOrderedItems<T extends SortableItem>({
       onEnable={onEnable}
       onClick={onClick}
       onSortEnd={onSortEnd}
+      onColorChange={onColorChange}
       distance={5}
     />
   );

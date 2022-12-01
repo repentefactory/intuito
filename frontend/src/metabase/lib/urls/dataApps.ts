@@ -1,6 +1,13 @@
 import slugg from "slugg";
 
-import type { DataApp, DataAppSearchItem, Dashboard } from "metabase-types/api";
+import type {
+  DataApp,
+  DataAppNavItem,
+  DataAppSearchItem,
+  Dashboard,
+} from "metabase-types/api";
+
+import { isNavItem } from "metabase-types/guards";
 
 import { appendSlug } from "./utils";
 
@@ -35,8 +42,9 @@ export function dataApp(
   return appendSlug(`/a/${appId}`, slugg(appName));
 }
 
-export function dataAppPage(app: DataApp, page: Dashboard) {
-  return `/a/${app.id}/page/${page.id}`;
+export function dataAppPage(app: DataApp, object: Dashboard | DataAppNavItem) {
+  const pageId = isNavItem(object) ? object.page_id : object.id;
+  return `/a/${app.id}/page/${pageId}`;
 }
 
 export function isDataAppPreviewPath(pathname: string) {

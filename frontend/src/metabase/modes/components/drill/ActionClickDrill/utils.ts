@@ -1,42 +1,77 @@
 import _ from "underscore";
+import { isEmpty } from "metabase/lib/validate";
 
 import type {
-  ActionButtonParametersMapping,
+  ActionDashboardCard,
+  ActionParametersMapping,
+  ParametersForActionExecution,
   WritebackAction,
+  WritebackParameter,
+  ParameterId,
+  ActionParameterValue,
 } from "metabase-types/api";
 import type { ParameterValueOrArray } from "metabase-types/types/Parameter";
-
-import type { ActionClickBehaviorData } from "./types";
+import { isNotNull } from "metabase/core/utils/types";
 
 function formatParameterValue(value: ParameterValueOrArray) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+type ActionParameterTuple = [ParameterId, ActionParameterValue];
+
+export function getDashcardParamValues(
+  dashcard: ActionDashboardCard,
+  parameterValues: { [id: string]: ParameterValueOrArray },
+): ParametersForActionExecution {
+  if (!dashcard.action || !dashcard?.parameter_mappings?.length) {
+    return {};
+  }
+  const { action, parameter_mappings } = dashcard;
+
+  return Object.fromEntries(
+    parameter_mappings
+      ?.map(mapping => prepareParameter(mapping, action, parameterValues))
+      ?.filter(isNotNull),
+  );
+}
+
 export function prepareParameter(
-  mapping: ActionButtonParametersMapping,
-  {
-    data,
-    action,
-  }: {
-    data: ActionClickBehaviorData;
-    action: WritebackAction;
-  },
-) {
+  mapping: ActionParametersMapping,
+  action: WritebackAction,
+  parameterValues: { [id: string]: ParameterValueOrArray },
+): ActionParameterTuple | undefined {
   const { parameter_id: sourceParameterId, target: actionParameterTarget } =
     mapping;
 
-  const sourceParameter = data.parameter[sourceParameterId];
+  const parameterValue = parameterValues[sourceParameterId];
   const actionParameter = action.parameters.find(parameter =>
     _.isEqual(parameter.target, actionParameterTarget),
   );
 
-  if (!actionParameter || !sourceParameter) {
+  // dont return unmapped or empty values
+  if (!actionParameter || isEmpty(parameterValue)) {
     return;
   }
 
-  return {
-    id: sourceParameterId,
-    type: actionParameter.type,
-    value: formatParameterValue(sourceParameter.value),
-  };
+  return [actionParameter.id, formatParameterValue(parameterValue)];
+}
+
+function isMappedParameter(
+  parameter: WritebackParameter,
+  dashboardParamValues: ParametersForActionExecution,
+) {
+  return parameter.id in dashboardParamValues;
+}
+
+export function getNotProvidedActionParameters(
+  action: WritebackAction,
+  dashboardParamValues: ParametersForActionExecution,
+) {
+  // return any action parameters that don't have mapped values
+  return (action.parameters ?? []).filter(parameter => {
+    if ("default" in parameter) {
+      return false;
+    }
+    return !isMappedParameter(parameter, dashboardParamValues);
+  });
 }

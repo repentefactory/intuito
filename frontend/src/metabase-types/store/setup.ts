@@ -1,11 +1,13 @@
+import { DatabaseSchedules } from "metabase-types/api";
+
 export interface Locale {
   name: string;
   code: string;
 }
 
 export interface UserInfo {
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string;
   site_name: string;
   password: string;
@@ -13,19 +15,18 @@ export interface UserInfo {
 }
 
 export interface InviteInfo {
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string;
 }
 
 export interface DatabaseInfo {
   name: string;
-  engine: string;
-  details: DatabaseDetails;
-}
-
-export interface DatabaseDetails {
-  ssl: boolean;
+  engine: string | undefined;
+  details: Record<string, unknown>;
+  schedules: DatabaseSchedules;
+  auto_run_queries: boolean;
+  refingerprint: boolean;
 }
 
 export interface SubscribeInfo {

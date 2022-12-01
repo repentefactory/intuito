@@ -32,12 +32,11 @@ Metabase is a deep product with a lot of tools to simplify business intelligence
 ## Documentation topics
 
 Metabase's reference documentation.
+### Installation
 
-### Installation and operation
-
-- [Installation and operation overview](./installation-and-operation/start.md)
+- [Installation overview](./installation-and-operation/start.md)
 - [Installing Metabase](./installation-and-operation/installing-metabase.md)
-- [How to upgrade Metabase](./installation-and-operation/upgrading-metabase.md)
+- [Upgrading Metabase](./installation-and-operation/upgrading-metabase.md)
 - [Configuring the Metabase application database](./installation-and-operation/configuring-application-database.md)
 - [Backing up Metabase](./installation-and-operation/backing-up-metabase-application-data.md)
 - [Migrating to a production application database](./installation-and-operation/migrating-from-h2.md)
@@ -47,21 +46,29 @@ Metabase's reference documentation.
 - [Supported browsers](./installation-and-operation/supported-browsers.md)
 - [Privacy](./installation-and-operation/privacy.md)
 
-### Asking questions
+### Databases
+
+- [Databases overview](./databases/start.md)
+- [Adding and managing databases](./databases/connecting.md)
+- [Encrypting your database connection](./databases/encrypting-details-at-rest.md)
+- [SSH tunneling](./databases/ssh-tunnel.md)
+- [SSL certificate](./databases/ssl-certificates.md)
+
+### Questions
 
 - [Questions overview](./questions/start.md)
 
 #### Query builder
 
 - [Asking questions](./questions/query-builder/introduction.md)
+- [Visualizing data](./questions/sharing/visualizing-results.md)
 - [Custom expressions](./questions/query-builder/expressions.md)
 - [List of expressions](./questions/query-builder/expressions-list.md)
-- [Joining data](./questions/query-builder//join.md)
+- [Joining data](./questions/query-builder/join.md)
 
 #### SQL and native queries
 
 - [The SQL editor](./questions/native-editor/writing-sql.md)
-- [Data reference](./questions/native-editor/data-model-reference.md)
 - [SQL parameters](./questions/native-editor/sql-parameters.md)
 - [Referencing models and saved questions](./questions/native-editor/referencing-saved-questions-in-queries.md)
 - [SQL snippets](./questions/native-editor/sql-snippets.md)
@@ -70,7 +77,6 @@ Metabase's reference documentation.
 #### Sharing
 
 - [Sharing answers](./questions/sharing/answers.md)
-- [Visualizing data](./questions/sharing/visualizing-results.md)
 - [Setting and getting alerts](./questions/sharing/alerts.md)
 - [Public links](./questions/sharing/public-links.md)
 
@@ -92,16 +98,19 @@ Metabase's reference documentation.
 - [Formatting defaults](./data-modeling/formatting.md)
 - [Segments and metrics](./data-modeling/segments-and-metrics.md)
 
-### Exploration and organization overview
+### Organization
 
-- [Exploration and organization overview](./exploration-and-organization/start.md)
+- [Organization overview](./exploration-and-organization/start.md)
 - [Basic exploration](./exploration-and-organization/exploration.md)
 - [Collections](./exploration-and-organization/collections.md)
+- [History](./exploration-and-organization/history.md)
+- [Data reference](./exploration-and-organization/data-model-reference.md)
 - [Events and timelines](./exploration-and-organization/events-and-timelines.md)
+- [X-rays](./exploration-and-organization/x-rays.md)
 
-### People and groups
+### People
 
-- [People and groups overview](./people-and-groups/start.md)
+- [People overview](./people-and-groups/start.md)
 - [Account settings](./people-and-groups/account-settings.md)
 - [Managing people and groups](./people-and-groups/managing.md)
 - [Password complexity](./people-and-groups/changing-password-complexity.md)
@@ -120,7 +129,7 @@ Metabase's reference documentation.
 
 ### Permissions
 
-- [Overview](./permissions/start.md)
+- [Permissions overview](./permissions/start.md)
 - [Permissions introduction](./permissions/introduction.md)
 - [Data permissions](./permissions/data.md)
 - [Collection permissions](./permissions/collections.md)
@@ -128,7 +137,7 @@ Metabase's reference documentation.
 - [Data sandboxes](./permissions/data-sandboxes.md)
 - [SQL snippets folder permissions](./permissions/snippets.md)
 
-### Embedding questions and dashboards
+### Embedding
 
 - [Embedding overview](./embedding/start.md)
 - [Embedding introduction](./embedding/introduction.md)
@@ -136,33 +145,26 @@ Metabase's reference documentation.
 - [Full-app embedding](./embedding/full-app-embedding.md)
 - [Embedding example apps](https://github.com/metabase/embedding-reference-apps)
 
-### Databases
+### Configuration
 
-- [Databases overview](./databases/start.md)
-- [Adding and managing databases](./databases/connecting.md)
-- [Encrypting your database connection](./databases/encrypting-details-at-rest.md)
-- [SSH tunneling](./databases/ssh-tunnel.md)
-- [SSL certificate](./databases/ssl-certificates.md)
-
-### Configuring Metabase
-
-- [Configuring Metabase overview](./configuring-metabase/start.md)
+- [Configuration overview](./configuring-metabase/start.md)
 - [Setting up Metabase](./configuring-metabase/setting-up-metabase.md)
 - [General settings](./configuring-metabase/settings.md)
 - [Email](./configuring-metabase/email.md)
 - [Slack](./configuring-metabase/slack.md)
 - [Environment variables](./configuring-metabase/environment-variables.md)
-- [Metabase logs](./configuring-metabase/log-configuration.md)
+- [Configuration file](./configuring-metabase/config-file.md)
+- [Metabase log configuration](./configuring-metabase/log-configuration.md)
 - [Timezones](./configuring-metabase/timezones.md)
 - [Languages and localization](./configuring-metabase/localization.md)
 - [Appearance](./configuring-metabase/appearance.md)
 - [Caching query results](./configuring-metabase/caching.md)
 - [Custom maps](./configuring-metabase/custom-maps.md)
-- [Customizing the Metabase Jetty Webserver](./configuring-metabase/customizing-jetty-webserver.md)
+- [Customizing the Metabase Jetty webserver](./configuring-metabase/customizing-jetty-webserver.md)
 
-### Usage and performance tools
+### Tools
 
-- [Usage and performance tools overview](./usage-and-performance-tools/start.md)
+- [Tools overview](./usage-and-performance-tools/start.md)
 - [Auditing tools](./usage-and-performance-tools/audit.md)
 - [Admin tools](./usage-and-performance-tools/tools.md)
 
@@ -174,6 +176,10 @@ Metabase's reference documentation.
 ### Troubleshooting
 
 - [Troubleshooting guides](./troubleshooting-guide/index.md)
+
+### Developer guide
+
+- [Developer guide](./developers-guide/start.md)
 
 ## Getting help
 
@@ -232,3 +238,7 @@ Contribute to the Metabase open source project!
 ### [Data and Business Intelligence Glossary](https://www.metabase.com/glossary)
 
 Data jargon explained.
+
+### [Metabase Experts](https://www.metabase.com/partners/)
+
+If you’d like more technical resources to set up your data stack with Metabase, connect with a [Metabase Expert](https://www.metabase.com/partners/).
