@@ -1,4 +1,4 @@
-import React, { forwardRef, Ref, TextareaHTMLAttributes } from "react";
+import { forwardRef, Ref, TextareaHTMLAttributes } from "react";
 import { TextAreaRoot } from "./TextArea.styled";
 
 export interface TextAreaProps
@@ -16,4 +16,7 @@ const TextArea = forwardRef(function TextArea(
   );
 });
 
-export default TextArea;
+// eslint-disable-next-line import/no-default-export -- deprecated usage
+export default Object.assign(TextArea, {
+  Root: TextAreaRoot,
+});

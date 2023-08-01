@@ -1,12 +1,14 @@
 (ns metabase.transforms.dashboard
-  (:require [medley.core :as m]
-            [metabase.api.common :as api]
-            [metabase.automagic-dashboards.populate :as populate]
-            [metabase.models.table :refer [Table]]
-            [metabase.transforms.materialize :as tf.materialize]
-            [metabase.transforms.specs :refer [transform-specs]]
-            [metabase.util :as u]
-            [toucan.db :as db]))
+  (:require
+   [medley.core :as m]
+   [metabase.api.common :as api]
+   [metabase.automagic-dashboards.populate :as populate]
+   [metabase.models.table :refer [Table]]
+   [metabase.transforms.materialize :as tf.materialize]
+   [metabase.transforms.specs :refer [transform-specs]]
+   [metabase.util :as u]
+   [toucan2.core :as t2]
+   [toucan2.realize :as t2.realize]))
 
 (def ^:private ^:const ^Long width 12)
 (def ^:private ^:const ^Long total-width 18)
@@ -34,6 +36,7 @@
 
 (defn- card-for-source-table
   [table]
+  {:pre [(map? table)]}
   {:creator_id             api/*current-user-id*
    :dataset_query          {:type     :query
                             :query    {:source-table (u/the-id table)}
@@ -43,20 +46,28 @@
    :visualization_settings {}
    :display                :table})
 
+(defn- sources [steps]
+  (when-let [table-ids (->> steps
+                            (map (comp :source-table :query :dataset_query))
+                            (filter number?)
+                            not-empty)]
+    (let [table-id->table (t2/select-pk->fn t2.realize/realize Table :id [:in (set table-ids)])]
+      (mapv (fn [table-id]
+              (let [table (get table-id->table table-id)]
+                (card-for-source-table table)))
+            table-ids))))
+
 (defn dashboard
   "Create a (transient) dashboard for transform named `transform-name`."
   [transform-name]
   (let [transform-spec              (m/find-first (comp #{transform-name} :name) @transform-specs)
         {steps false provides true} (->> transform-name
                                          tf.materialize/get-collection
-                                         (db/select 'Card :collection_id)
+                                         (t2/select 'Card :collection_id)
                                          (group-by (comp some?
                                                          (-> transform-spec :provides set)
                                                          :name)))
-        sources                     (->> steps
-                                         (map (comp :source-table :query :dataset_query))
-                                         (filter number?)
-                                         (map (comp card-for-source-table Table)))]
+        sources                     (sources steps)]
     (populate/create-dashboard {:cards       (concat (cards->section "sources" sources)
                                                      (cards->section "steps" steps)
                                                      (cards->section "provides" provides))

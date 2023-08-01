@@ -1,52 +1,71 @@
-import React, { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormikContext } from "formik";
 import { t } from "ttag";
+import { useSelector } from "metabase/lib/redux";
 import Button from "metabase/core/components/Button";
 import Form from "metabase/core/components/Form";
 import FormProvider from "metabase/core/components/FormProvider";
 import FormFooter from "metabase/core/components/FormFooter";
 import FormSubmitButton from "metabase/core/components/FormSubmitButton";
 import FormErrorMessage from "metabase/core/components/FormErrorMessage";
-import { Engine } from "metabase-types/api";
-import { DatabaseValues } from "../../types";
-import { getValidationSchema, getVisibleFields } from "../../utils/schema";
+import { PLUGIN_CACHING } from "metabase/plugins";
+import { DatabaseData, Engine } from "metabase-types/api";
+import { getEngines, getIsCachingEnabled, getIsHosted } from "../../selectors";
+import { getDefaultEngineKey } from "../../utils/engine";
+import {
+  getSubmitValues,
+  getValidationSchema,
+  getVisibleFields,
+} from "../../utils/schema";
 import DatabaseEngineField from "../DatabaseEngineField";
 import DatabaseNameField from "../DatabaseNameField";
 import DatabaseDetailField from "../DatabaseDetailField";
 import DatabaseEngineWarning from "../DatabaseEngineWarning";
 import { LinkButton, LinkFooter } from "./DatabaseForm.styled";
 
-export interface DatabaseFormProps {
-  engines: Record<string, Engine>;
-  initialValues?: DatabaseValues;
-  isHosted?: boolean;
+interface DatabaseFormProps {
+  initialValues?: DatabaseData;
+  autofocusFieldName?: string;
   isAdvanced?: boolean;
-  onSubmit: (values: DatabaseValues) => void;
+  onSubmit?: (values: DatabaseData) => void;
   onEngineChange?: (engineKey: string | undefined) => void;
   onCancel?: () => void;
+  setIsDirty?: (isDirty: boolean) => void;
 }
 
-const DatabaseForm = ({
-  engines,
+export const DatabaseForm = ({
   initialValues: initialData,
-  isHosted = false,
+  autofocusFieldName,
   isAdvanced = false,
   onSubmit,
   onCancel,
   onEngineChange,
+  setIsDirty,
 }: DatabaseFormProps): JSX.Element => {
-  const [engineKey, setEngineKey] = useState(initialData?.engine);
-  const engine = engineKey ? engines[engineKey] : undefined;
+  const engines = useSelector(getEngines);
+  const isHosted = useSelector(getIsHosted);
+  const isCachingEnabled = useSelector(getIsCachingEnabled);
+  const initialEngineKey = getEngineKey(engines, initialData, isAdvanced);
+  const [engineKey, setEngineKey] = useState(initialEngineKey);
+  const engine = getEngine(engines, engineKey);
 
   const validationSchema = useMemo(() => {
     return getValidationSchema(engine, engineKey, isAdvanced);
   }, [engine, engineKey, isAdvanced]);
 
   const initialValues = useMemo(() => {
-    return initialData
-      ? validationSchema.cast(initialData, { stripUnknown: true })
-      : validationSchema.getDefault();
-  }, [initialData, validationSchema]);
+    return validationSchema.cast(
+      { ...initialData, engine: engineKey },
+      { stripUnknown: true },
+    );
+  }, [initialData, engineKey, validationSchema]);
+
+  const handleSubmit = useCallback(
+    (values: DatabaseData) => {
+      return onSubmit?.(getSubmitValues(engine, values, isAdvanced));
+    },
+    [engine, isAdvanced, onSubmit],
+  );
 
   const handleEngineChange = useCallback(
     (engineKey: string | undefined) => {
@@ -61,16 +80,19 @@ const DatabaseForm = ({
       initialValues={initialValues}
       validationSchema={validationSchema}
       enableReinitialize
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
     >
       <DatabaseFormBody
         engine={engine}
         engineKey={engineKey}
         engines={engines}
+        autofocusFieldName={autofocusFieldName}
         isHosted={isHosted}
         isAdvanced={isAdvanced}
+        isCachingEnabled={isCachingEnabled}
         onEngineChange={handleEngineChange}
         onCancel={onCancel}
+        setIsDirty={setIsDirty}
       />
     </FormProvider>
   );
@@ -80,29 +102,39 @@ interface DatabaseFormBodyProps {
   engine: Engine | undefined;
   engineKey: string | undefined;
   engines: Record<string, Engine>;
+  autofocusFieldName?: string;
   isHosted: boolean;
   isAdvanced: boolean;
+  isCachingEnabled: boolean;
   onEngineChange: (engineKey: string | undefined) => void;
   onCancel?: () => void;
+  setIsDirty?: (isDirty: boolean) => void;
 }
 
 const DatabaseFormBody = ({
   engine,
   engineKey,
   engines,
+  autofocusFieldName,
   isHosted,
   isAdvanced,
+  isCachingEnabled,
   onEngineChange,
   onCancel,
+  setIsDirty,
 }: DatabaseFormBodyProps): JSX.Element => {
-  const { values, dirty } = useFormikContext<DatabaseValues>();
+  const { values, dirty } = useFormikContext<DatabaseData>();
+
+  useEffect(() => {
+    setIsDirty?.(dirty);
+  }, [dirty, setIsDirty]);
 
   const fields = useMemo(() => {
     return engine ? getVisibleFields(engine, values, isAdvanced) : [];
   }, [engine, values, isAdvanced]);
 
   return (
-    <Form disabled={isAdvanced && !dirty}>
+    <Form>
       <DatabaseEngineField
         engineKey={engineKey}
         engines={engines}
@@ -110,37 +142,52 @@ const DatabaseFormBody = ({
         isAdvanced={isAdvanced}
         onChange={onEngineChange}
       />
-      {!isAdvanced && (
-        <DatabaseEngineWarning
-          engineKey={engineKey}
-          engines={engines}
-          onChange={onEngineChange}
-        />
-      )}
+      <DatabaseEngineWarning
+        engineKey={engineKey}
+        engines={engines}
+        onChange={onEngineChange}
+      />
       {engine && <DatabaseNameField engine={engine} />}
       {fields.map(field => (
-        <DatabaseDetailField key={field.name} field={field} />
+        <DatabaseDetailField
+          key={field.name}
+          field={field}
+          autoFocus={field.name === autofocusFieldName}
+          data-kek={field.name}
+        />
       ))}
-      <DatabaseFormFooter isAdvanced={isAdvanced} onCancel={onCancel} />
+      {isCachingEnabled && <PLUGIN_CACHING.DatabaseCacheTimeField />}
+      <DatabaseFormFooter
+        isDirty={dirty}
+        isAdvanced={isAdvanced}
+        onCancel={onCancel}
+      />
     </Form>
   );
 };
 
 interface DatabaseFormFooterProps {
   isAdvanced: boolean;
+  isDirty: boolean;
   onCancel?: () => void;
 }
 
 const DatabaseFormFooter = ({
   isAdvanced,
+  isDirty,
   onCancel,
 }: DatabaseFormFooterProps) => {
-  const { values, dirty } = useFormikContext<DatabaseValues>();
+  const { values } = useFormikContext<DatabaseData>();
+  const isNew = values.id == null;
 
   if (isAdvanced) {
     return (
       <div>
-        <FormSubmitButton title={t`Save`} disabled={!dirty} primary />
+        <FormSubmitButton
+          disabled={!isDirty}
+          title={isNew ? t`Save` : t`Save changes`}
+          primary
+        />
         <FormErrorMessage />
       </div>
     );
@@ -163,4 +210,18 @@ const DatabaseFormFooter = ({
   }
 };
 
-export default DatabaseForm;
+const getEngine = (engines: Record<string, Engine>, engineKey?: string) => {
+  return engineKey ? engines[engineKey] : undefined;
+};
+
+const getEngineKey = (
+  engines: Record<string, Engine>,
+  values?: DatabaseData,
+  isAdvanced?: boolean,
+) => {
+  if (values?.engine) {
+    return values.engine;
+  } else if (isAdvanced) {
+    return getDefaultEngineKey(engines);
+  }
+};

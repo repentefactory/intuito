@@ -1,5 +1,4 @@
 import styled from "@emotion/styled";
-import { css } from "@emotion/react";
 import { color } from "metabase/lib/colors";
 
 export const BetweenLayoutContainer = styled.div`
@@ -21,5 +20,6 @@ export const BetweenLayoutFieldSeparator = styled.div`
 
 export const DefaultPickerContainer = styled.div`
   max-height: 300px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 `;

@@ -1,13 +1,15 @@
 (ns metabase.models.query-test
-  (:require [clojure.test :refer :all]
-            [metabase.models :refer [Card]]
-            [metabase.models.query :as query]
-            [metabase.test :as mt]))
+  (:require
+   [clojure.test :refer :all]
+   [metabase.models :refer [Card]]
+   [metabase.models.query :as query]
+   [metabase.test :as mt]
+   [toucan2.tools.with-temp :as t2.with-temp]))
 
 (deftest query->database-and-table-ids-test
-  (mt/with-temp Card [card {:dataset_query {:database (mt/id)
-                                            :type     :query
-                                            :query    {:source-table (mt/id :venues)}}}]
+  (t2.with-temp/with-temp [Card card {:dataset_query {:database (mt/id)
+                                                      :type     :query
+                                                      :query    {:source-table (mt/id :venues)}}}]
     (doseq [[message {:keys [expected query]}]
             {"A basic query"
              {:expected {:database-id 1, :table-id 1}

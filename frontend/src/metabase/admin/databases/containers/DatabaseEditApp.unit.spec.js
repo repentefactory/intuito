@@ -1,16 +1,27 @@
-import React from "react";
+import { IndexRoute, Route } from "react-router";
+
+import userEvent from "@testing-library/user-event";
 import {
   renderWithProviders,
   screen,
   waitForElementToBeRemoved,
+  waitFor,
 } from "__support__/ui";
-import admin from "metabase/admin/admin";
-import MetabaseSettings from "metabase/lib/settings";
 import { setupEnterpriseTest } from "__support__/enterprise";
+import { mockSettings } from "__support__/settings";
+
+import {
+  createMockDatabase,
+  createMockTokenFeatures,
+} from "metabase-types/api/mocks";
+import { setupDatabaseEndpoints } from "__support__/server-mocks";
+
+import { BEFORE_UNLOAD_UNSAVED_MESSAGE } from "metabase/hooks/use-before-unload";
+import { callMockEvent } from "__support__/events";
 import DatabaseEditApp from "./DatabaseEditApp";
 
 const ENGINES_MOCK = {
-  h2: {
+  H2: {
     "details-fields": [
       { "display-name": "Connection String", name: "db", required: true },
       { name: "advanced-options", type: "section", default: true },
@@ -28,57 +39,81 @@ const ENGINES_MOCK = {
   },
 };
 
-const ComponentMock = () => <div />;
-jest.mock("metabase/containers/DatabaseHelpCard", () => ComponentMock);
-jest.mock(
-  "metabase/databases/containers/DatabaseEngineWarning",
-  () => ComponentMock,
-);
+async function setup({ cachingEnabled = false, databaseIdParam = "" } = {}) {
+  const mockEventListener = jest.spyOn(window, "addEventListener");
 
-function mockSettings({ cachingEnabled = false }) {
-  const original = MetabaseSettings.get.bind(MetabaseSettings);
-  const spy = jest.spyOn(MetabaseSettings, "get");
-  spy.mockImplementation(key => {
-    if (key === "engines") {
-      return ENGINES_MOCK;
-    }
-    if (key === "enable-query-caching") {
-      return cachingEnabled;
-    }
-    if (key === "site-url") {
-      return "http://localhost:3333";
-    }
-    if (key === "application-name") {
-      return "Metabase Test";
-    }
-    if (key === "is-hosted?") {
-      return false;
-    }
-    if (key === "cloud-gateway-ips") {
-      return [];
-    }
-    return original(key);
+  const settings = mockSettings({
+    engines: ENGINES_MOCK,
+    "token-features": createMockTokenFeatures({
+      cache_granular_controls: true,
+    }),
+    "enable-query-caching": cachingEnabled,
   });
-}
 
-async function setup({ cachingEnabled = false } = {}) {
-  mockSettings({ cachingEnabled });
-
-  const settingsReducer = () => ({
-    values: {
-      "persisted-models-enabled": false,
+  renderWithProviders(
+    <Route path="/">
+      <IndexRoute component={DatabaseEditApp} />
+      <Route path=":databaseId" component={DatabaseEditApp} />
+    </Route>,
+    {
+      withRouter: true,
+      initialRoute: `/${databaseIdParam}`,
+      storeInitialState: {
+        settings,
+      },
     },
-  });
-
-  renderWithProviders(<DatabaseEditApp />, {
-    withRouter: true,
-    reducers: { admin, settings: settingsReducer },
-  });
+  );
 
   await waitForElementToBeRemoved(() => screen.queryByText("Loading..."));
+
+  return { mockEventListener };
 }
 
 describe("DatabaseEditApp", () => {
+  describe("Database connections", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("should have save changes button disabled", async () => {
+      setupDatabaseEndpoints(createMockDatabase());
+      await setup({ databaseIdParam: "1" });
+
+      const saveButton = await screen.findByRole("button", {
+        name: /save changes/i,
+      });
+      expect(saveButton).toBeDisabled();
+
+      const connectionField = await screen.findByLabelText("Connection String");
+      userEvent.type(connectionField, "Test Connection");
+
+      await waitFor(() => {
+        expect(saveButton).toBeEnabled();
+      });
+    });
+
+    it("should trigger beforeunload event when database connection is edited", async () => {
+      const { mockEventListener } = await setup();
+
+      const databaseForm = await screen.findByLabelText("Display name");
+
+      userEvent.type(databaseForm, "Test database");
+      const mockEvent = await waitFor(() => {
+        return callMockEvent(mockEventListener, "beforeunload");
+      });
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(mockEvent.returnValue).toBe(BEFORE_UNLOAD_UNSAVED_MESSAGE);
+    });
+
+    it("should not trigger beforeunload event when database connection is unchanged", async () => {
+      const { mockEventListener } = await setup();
+      const mockEvent = callMockEvent(mockEventListener, "beforeunload");
+
+      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+      expect(mockEvent.returnValue).toBe(undefined);
+    });
+  });
+
   describe("Cache TTL field", () => {
     describe("OSS", () => {
       it("is invisible", async () => {
@@ -99,7 +134,7 @@ describe("DatabaseEditApp", () => {
         await setup({ cachingEnabled: true });
 
         expect(
-          screen.queryByText("Default result cache duration"),
+          screen.getByText("Default result cache duration"),
         ).toBeInTheDocument();
       });
 

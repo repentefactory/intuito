@@ -1,4 +1,4 @@
-import React, { FocusEvent, useCallback, useMemo } from "react";
+import { FocusEvent, useCallback, useMemo } from "react";
 import { t } from "ttag";
 import Input from "metabase/core/components/Input";
 import { FontFile } from "metabase-types/api";
@@ -95,7 +95,6 @@ const FontFileRow = ({
       <TableBodyCell>
         <Input
           defaultValue={url}
-          size="small"
           placeholder="https://some.trusted.location/font-file.woff2"
           fullWidth
           onBlur={handleBlur}
@@ -106,4 +105,5 @@ const FontFileRow = ({
   );
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default FontFilesWidget;

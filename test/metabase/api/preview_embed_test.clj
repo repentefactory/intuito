@@ -1,14 +1,16 @@
 (ns metabase.api.preview-embed-test
-  (:require [clojure.test :refer :all]
-            [metabase.api.embed-test :as embed-test]
-            [metabase.api.pivots :as api.pivots]
-            [metabase.api.preview-embed :as api.preview-embed]
-            [metabase.models.card :refer [Card]]
-            [metabase.models.dashboard :refer [Dashboard]]
-            [metabase.models.dashboard-card :refer [DashboardCard]]
-            [metabase.test :as mt]
-            [metabase.util :as u]
-            [schema.core :as s]))
+  (:require
+   [clojure.test :refer :all]
+   [metabase.api.embed-test :as embed-test]
+   [metabase.api.pivots :as api.pivots]
+   [metabase.api.preview-embed :as api.preview-embed]
+   [metabase.models.card :refer [Card]]
+   [metabase.models.dashboard :refer [Dashboard]]
+   [metabase.models.dashboard-card :refer [DashboardCard]]
+   [metabase.test :as mt]
+   [metabase.util :as u]
+   [schema.core :as s]
+   [toucan2.tools.with-temp :as t2.with-temp]))
 
 ;;; --------------------------------------- GET /api/preview_embed/card/:token ---------------------------------------
 
@@ -42,21 +44,21 @@
           (embed-test/with-temp-card [card {:dataset_query
                                             {:database (mt/id)
                                              :type     :native
-                                             :native   {:template-tags {:a {:type "date", :name "a", :display_name "a"}
-                                                                        :b {:type "date", :name "b", :display_name "b"}
-                                                                        :c {:type "date", :name "c", :display_name "c"}
-                                                                        :d {:type "date", :name "d", :display_name "d"}}}}}]
-            (is (= [{:id      nil
+                                             :native   {:template-tags {:a {:type "date", :name "a", :display_name "a" :id "a"}
+                                                                        :b {:type "date", :name "b", :display_name "b" :id "b"}
+                                                                        :c {:type "date", :name "c", :display_name "c" :id "c"}
+                                                                        :d {:type "date", :name "d", :display_name "d" :id "d"}}}}}]
+            (is (= [{:id      "d"
                      :type    "date/single"
                      :target  ["variable" ["template-tag" "d"]]
                      :name    "d"
                      :slug    "d"
                      :default nil}]
                    (-> (mt/user-http-request :crowberto :get 200 (card-url card {:_embedding_params {:a "locked"
-                                                                                                     :b "disabled"
-                                                                                                     :c "enabled"
-                                                                                                     :d "enabled"}
-                                                                                 :params            {:c 100}}))
+                                                                                                      :b "disabled"
+                                                                                                      :c "enabled"
+                                                                                                      :d "enabled"}
+                                                                                  :params            {:c 100}}))
                        :parameters)))))))))
 
 ;;; ------------------------------------ GET /api/preview_embed/card/:token/query ------------------------------------
@@ -163,13 +165,7 @@
                                  (mt/rows
                                   (mt/user-http-request :crowberto :get 202 (card-query-url card))))]
                     (is (= expected-row-count limited))
-                    (is (not= expected-row-count orders-row-count))))
-                (testing "with writeable card"
-                  (embed-test/with-temp-card [writable-card {:is_write true
-                                                             :dataset_query sample-db-orders-question}]
-                    (is (= "Write queries are only executable via the Actions API."
-                           (:message
-                            (mt/user-http-request :crowberto :get 405 (card-query-url writable-card)))))))))))))))
+                    (is (not= expected-row-count orders-row-count))))))))))))
 
 ;;; ------------------------------------ GET /api/preview_embed/dashboard/:token -------------------------------------
 
@@ -180,11 +176,11 @@
 (deftest dashboard-test
   (testing "GET /api/preview_embed/dashboard/:token"
     (embed-test/with-embedding-enabled-and-new-secret-key
-      (mt/with-temp Dashboard [dash]
+      (t2.with-temp/with-temp [Dashboard dash]
         (testing "it should be possible to call this endpoint successfully..."
           (is (= embed-test/successful-dashboard-info
                  (embed-test/dissoc-id-and-name
-                   (mt/user-http-request :crowberto :get 200 (dashboard-url dash))))))
+                  (mt/user-http-request :crowberto :get 200 (dashboard-url dash))))))
 
         (testing "...but if the user is not an admin this endpoint should fail"
           (is (= "You don't have permissions to do that."
@@ -202,17 +198,17 @@
 (deftest only-enabled-params-not-in-jwt-test
   (testing "Check that only ENABLED params that ARE NOT PRESENT IN THE JWT come back"
     (embed-test/with-embedding-enabled-and-new-secret-key
-      (mt/with-temp Dashboard [dash {:parameters [{:id "_a", :slug "a", :name "a", :type "date"}
-                                                  {:id "_b", :slug "b", :name "b", :type "date"}
-                                                  {:id "_c", :slug "c", :name "c", :type "date"}
-                                                  {:id "_d", :slug "d", :name "d", :type "date"}]}]
-        (is (= [{:id "_d", :slug "d", :name "d", :type "date"}]
-               (:parameters (mt/user-http-request :crowberto :get 200 (dashboard-url dash
-                                                                        {:params            {:c 100}
-                                                                         :_embedding_params {:a "locked"
-                                                                                             :b "disabled"
-                                                                                             :c "enabled"
-                                                                                             :d "enabled"}})))))))))
+      (t2.with-temp/with-temp [Dashboard dash {:parameters [{:id "_a", :slug "a", :name "a", :type "date"}
+                                                            {:id "_b", :slug "b", :name "b", :type "date"}
+                                                            {:id "_c", :slug "c", :name "c", :type "date"}
+                                                            {:id "_d", :slug "d", :name "d", :type "date"}]}]
+        (is (=? [{:id "_d", :slug "d", :name "d", :type "date"}]
+                (:parameters (mt/user-http-request :crowberto :get 200 (dashboard-url dash
+                                                                                      {:params            {:c 100}
+                                                                                       :_embedding_params {:a "locked"
+                                                                                                           :b "disabled"
+                                                                                                           :c "enabled"
+                                                                                                           :d "enabled"}})))))))))
 
 ;;; ------------------ GET /api/preview_embed/dashboard/:token/dashcard/:dashcard-id/card/:card-id -------------------
 
@@ -242,13 +238,7 @@
 
         (testing "check that if embedding is enabled globally requests fail if they are signed with the wrong key"
           (is (= "Message seems corrupt or manipulated."
-                 (mt/user-http-request :crowberto :get 400 (embed-test/with-new-secret-key (dashcard-url dashcard))))))))
-    (testing "with writable card"
-      (embed-test/with-embedding-enabled-and-new-secret-key
-        (embed-test/with-temp-dashcard [dashcard {:card-fn (fn [card] (assoc card :is_write true))}]
-          (testing "It should be possible to run a Card successfully if you jump through the right hoops..."
-            (= "Write queries are only executable via the Actions API."
-               (:message (mt/user-http-request :crowberto :get 405 (dashcard-url dashcard))))))))))
+                 (mt/user-http-request :crowberto :get 400 (embed-test/with-new-secret-key (dashcard-url dashcard))))))))))
 
 (deftest dashcard-locked-params-test
   (testing "/api/preview_embed/dashboard/:token/dashcard/:dashcard-id/card/:card-id"
@@ -341,14 +331,14 @@
 (deftest editable-params-should-not-be-invalid-test
   (testing "Make sure that editable params do not result in \"Invalid Parameter\" exceptions (#7212)"
     (embed-test/with-embedding-enabled-and-new-secret-key
-      (mt/with-temp Card [card {:dataset_query {:database (mt/id)
-                                                :type     :native
-                                                :native   {:query         "SELECT {{num}} AS num"
-                                                           :template-tags {:num {:name         "num"
-                                                                                 :display_name "Num"
-                                                                                 :type         "number"
-                                                                                 :required     true
-                                                                                 :default      "1"}}}}}]
+      (t2.with-temp/with-temp [Card card {:dataset_query {:database (mt/id)
+                                                          :type     :native
+                                                          :native   {:query         "SELECT {{num}} AS num"
+                                                                     :template-tags {:num {:name         "num"
+                                                                                           :display_name "Num"
+                                                                                           :type         "number"
+                                                                                           :required     true
+                                                                                           :default      "1"}}}}}]
         (embed-test/with-temp-dashcard [dashcard {:dash     {:parameters [{:name "Num"
                                                                            :slug "num"
                                                                            :id   "_NUM_"
@@ -367,10 +357,10 @@
   (mt/test-driver :postgres
     (testing "Make sure that ID params correctly get converted to numbers as needed (Postgres-specific)..."
       (embed-test/with-embedding-enabled-and-new-secret-key
-        (mt/with-temp Card [card {:dataset_query {:database (mt/id)
-                                                  :type     :query
-                                                  :query    {:source-table (mt/id :venues)
-                                                             :aggregation  [:count]}}}]
+        (t2.with-temp/with-temp [Card card {:dataset_query {:database (mt/id)
+                                                            :type     :query
+                                                            :query    {:source-table (mt/id :venues)
+                                                                       :aggregation  [:count]}}}]
           (embed-test/with-temp-dashcard [dashcard {:dash     {:parameters [{:name "Venue ID"
                                                                              :slug "venue_id"
                                                                              :id   "_VENUE_ID_"
@@ -424,13 +414,7 @@
           (is (= "Message seems corrupt or manipulated."
                  (embed-test/with-embedding-enabled-and-new-secret-key
                    (embed-test/with-temp-card [card (api.pivots/pivot-card)]
-                     (mt/user-http-request :crowberto :get 400 (embed-test/with-new-secret-key (pivot-card-query-url card))))))))
-
-        (testing "should fail with writable card"
-          (embed-test/with-embedding-enabled-and-new-secret-key
-            (embed-test/with-temp-card [writable-card (assoc (api.pivots/pivot-card) :is_write true)]
-              (is (= "Write queries are only executable via the Actions API."
-                     (:message (mt/user-http-request :crowberto :get 405 (pivot-card-query-url writable-card))))))))))))
+                     (mt/user-http-request :crowberto :get 400 (embed-test/with-new-secret-key (pivot-card-query-url card))))))))))))
 
 (defn- pivot-dashcard-url {:style/indent 1} [dashcard & [additional-token-params]]
   (str "preview_embed/pivot/dashboard/"
@@ -473,17 +457,17 @@
   (testing "Query endpoints should work with a single URL parameter for an operator filter (#20438)"
     (mt/dataset sample-dataset
       (embed-test/with-embedding-enabled-and-new-secret-key
-        (mt/with-temp Card [{card-id :id, :as card} {:dataset_query    (mt/native-query
-                                                                         {:query         "SELECT count(*) AS count FROM PUBLIC.PEOPLE WHERE true [[AND {{NAME}}]]"
-                                                                          :template-tags {"NAME"
-                                                                                          {:name         "NAME"
-                                                                                           :display-name "Name"
-                                                                                           :type         :dimension
-                                                                                           :dimension    [:field (mt/id :people :name) nil]
-                                                                                           :widget-type  :string/=
-                                                                                           :default      nil}}})
-                                                     :enable_embedding true
-                                                     :embedding_params {"NAME" "enabled"}}]
+        (t2.with-temp/with-temp [Card {card-id :id, :as card} {:dataset_query    (mt/native-query
+                                                                                   {:query         "SELECT count(*) AS count FROM PUBLIC.PEOPLE WHERE true [[AND {{NAME}}]]"
+                                                                                    :template-tags {"NAME"
+                                                                                                    {:name         "NAME"
+                                                                                                     :display-name "Name"
+                                                                                                     :type         :dimension
+                                                                                                     :dimension    [:field (mt/id :people :name) nil]
+                                                                                                     :widget-type  :string/=
+                                                                                                     :default      nil}}})
+                                                               :enable_embedding true
+                                                               :embedding_params {"NAME" "enabled"}}]
           (testing "Card"
             (let [url (card-query-url card {:_embedding_params {:NAME "enabled"}})]
               (is (= [[1]]

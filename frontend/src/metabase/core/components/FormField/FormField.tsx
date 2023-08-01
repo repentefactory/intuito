@@ -1,5 +1,6 @@
-import React, { forwardRef, HTMLAttributes, ReactNode, Ref } from "react";
-import Tooltip from "metabase/components/Tooltip";
+import { forwardRef, HTMLAttributes, ReactNode, Ref } from "react";
+import { t } from "ttag";
+import Tooltip from "metabase/core/components/Tooltip";
 import { FieldAlignment, FieldOrientation } from "./types";
 import {
   FieldCaption,
@@ -10,13 +11,17 @@ import {
   FieldLabelContainer,
   FieldLabelError,
   FieldRoot,
+  OptionalTag,
+  FieldTitleActions,
 } from "./FormField.styled";
 
 export interface FormFieldProps extends HTMLAttributes<HTMLDivElement> {
   title?: string;
+  actions?: ReactNode;
   description?: ReactNode;
   alignment?: FieldAlignment;
   orientation?: FieldOrientation;
+  optional?: boolean;
   error?: string;
   htmlFor?: string;
   infoLabel?: string;
@@ -26,6 +31,7 @@ export interface FormFieldProps extends HTMLAttributes<HTMLDivElement> {
 const FormField = forwardRef(function FormField(
   {
     title,
+    actions,
     description,
     alignment = "end",
     orientation = "vertical",
@@ -34,28 +40,41 @@ const FormField = forwardRef(function FormField(
     infoLabel,
     infoTooltip,
     children,
+    optional,
     ...props
   }: FormFieldProps,
   ref: Ref<HTMLDivElement>,
 ) {
+  const hasTitle = Boolean(title);
+  const hasDescription = Boolean(description);
   const hasError = Boolean(error);
 
   return (
     <FieldRoot
       {...props}
       ref={ref}
+      alignment={alignment}
       orientation={orientation}
-      hasError={hasError}
     >
       {alignment === "start" && children}
-      {(title || description) && (
-        <FieldCaption alignment={alignment} orientation={orientation}>
-          <FieldLabelContainer>
-            {title && (
-              <FieldLabel htmlFor={htmlFor}>
+      {(hasTitle || hasDescription) && (
+        <FieldCaption
+          alignment={alignment}
+          orientation={orientation}
+          hasDescription={hasDescription}
+        >
+          <FieldLabelContainer
+            orientation={orientation}
+            hasDescription={hasDescription}
+          >
+            {hasTitle && (
+              <FieldLabel hasError={hasError} htmlFor={htmlFor}>
                 {title}
                 {hasError && <FieldLabelError>: {error}</FieldLabelError>}
               </FieldLabel>
+            )}
+            {!!optional && !hasError && (
+              <OptionalTag>{t`(optional)`}</OptionalTag>
             )}
             {(infoLabel || infoTooltip) && (
               <Tooltip tooltip={infoTooltip} maxWidth="100%">
@@ -66,6 +85,7 @@ const FormField = forwardRef(function FormField(
                 )}
               </Tooltip>
             )}
+            {actions && <FieldTitleActions>{actions}</FieldTitleActions>}
           </FieldLabelContainer>
           {description && <FieldDescription>{description}</FieldDescription>}
         </FieldCaption>
@@ -75,4 +95,8 @@ const FormField = forwardRef(function FormField(
   );
 });
 
-export default FormField;
+// eslint-disable-next-line import/no-default-export -- deprecated usage
+export default Object.assign(FormField, {
+  Root: FieldRoot,
+  Label: FieldLabel,
+});

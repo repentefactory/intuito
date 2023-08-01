@@ -1,15 +1,19 @@
 (ns metabase.query-processor.streaming.xlsx-test
-  (:require [cheshire.generate :as json.generate]
-            [clojure.java.io :as io]
-            [clojure.test :refer :all]
-            [dk.ative.docjure.spreadsheet :as spreadsheet]
-            [metabase.driver :as driver]
-            [metabase.query-processor.streaming.interface :as qp.si]
-            [metabase.query-processor.streaming.xlsx :as qp.xlsx]
-            [metabase.shared.models.visualization-settings :as mb.viz]
-            [metabase.test :as mt])
-  (:import com.fasterxml.jackson.core.JsonGenerator
-           [java.io BufferedInputStream BufferedOutputStream ByteArrayInputStream ByteArrayOutputStream]))
+  (:require
+   [cheshire.generate :as json.generate]
+   [clojure.java.io :as io]
+   [clojure.test :refer :all]
+   [dk.ative.docjure.spreadsheet :as spreadsheet]
+   [metabase.driver :as driver]
+   [metabase.query-processor.streaming.interface :as qp.si]
+   [metabase.query-processor.streaming.xlsx :as qp.xlsx]
+   [metabase.shared.models.visualization-settings :as mb.viz]
+   [metabase.test :as mt])
+  (:import
+   (com.fasterxml.jackson.core JsonGenerator)
+   (java.io BufferedInputStream BufferedOutputStream ByteArrayInputStream ByteArrayOutputStream)))
+
+(set! *warn-on-reflection* true)
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                     Format string generation unit tests                                        |
@@ -288,8 +292,10 @@
 
 (defn- parse-format-strings
   [sheet]
-  (for [row (spreadsheet/into-seq sheet)]
-    (map #(-> % .getCellStyle .getDataFormatString) row)))
+  (for [^org.apache.poi.ss.usermodel.Row row (spreadsheet/into-seq sheet)]
+    (map (fn [^org.apache.poi.xssf.usermodel.XSSFCell cell]
+           (.. cell getCellStyle getDataFormatString))
+         row)))
 
 (deftest export-format-test
   (testing "Different format strings are used for ints and numbers that round to ints (with 2 decimal places)"
@@ -445,7 +451,15 @@
            (second (xlsx-export [{:id 0, :name "Col"}] {} [["2020-03-28T10:12:06.681"]]))))
     (binding [qp.xlsx/*parse-temporal-string-values* true]
       (is (= [#inst "2020-03-28T10:12:06.681"]
-             (second (xlsx-export [{:id 0, :name "Col"}] {} [["2020-03-28T10:12:06.681"]]))))))
+             (second (xlsx-export [{:id 0, :name "Col" :effective_type :type/Temporal}]
+                                  {}
+                                  [["2020-03-28T10:12:06.681"]]))))
+      (testing "Values that are parseable as dates are not when effective_type is not temporal (#29708)"
+        (doseq [value ["0001" "4161" "02" "2020-03-28T10:12:06.681"]]
+          (is (= [value]
+                 (second (xlsx-export [{:id 0, :name "Col" :effective_type :type/Text}]
+                                      {}
+                                      [[value]]))))))))
   (mt/with-everything-store
     (binding [driver/*driver* :h2]
       (testing "OffsetDateTime"
@@ -490,8 +504,8 @@
                                 [[(SampleNastyClass. "Hello XLSX World!") (AnotherNastyClass. "No Encoder")]]))))))
 
 (defn- parse-column-width
-  [sheet]
-  (for [row (spreadsheet/into-seq sheet)]
+  [^org.apache.poi.ss.usermodel.Sheet sheet]
+  (for [^org.apache.poi.ss.usermodel.Row row (spreadsheet/into-seq sheet)]
     (for [i (range (.getLastCellNum row))]
       (.getColumnWidth sheet i))))
 
@@ -527,9 +541,10 @@
   (testing "POI temporary files are cleaned up if output stream is closed before export completes (#19480)"
     (let [poifiles-directory      (io/file (str (System/getProperty "java.io.tmpdir") "/poifiles"))
           expected-poifiles-count (count (file-seq poifiles-directory))
-          bos                (ByteArrayOutputStream.)
-          os                 (BufferedOutputStream. bos)
-          results-writer     (qp.si/streaming-results-writer :xlsx os)]
+          ;; TODO -- shouldn't these be using `with-open`?!
+          bos                     (ByteArrayOutputStream.)
+          os                      (BufferedOutputStream. bos)
+          results-writer          (qp.si/streaming-results-writer :xlsx os)]
       (.close os)
       (qp.si/begin! results-writer {:data {:ordered-cols []}} {})
       (qp.si/finish! results-writer {:row_count 0})

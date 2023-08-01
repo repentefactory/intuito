@@ -1,7 +1,5 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { getIn } from "icepick";
-
-import { isMappedExplicitActionButton } from "metabase/writeback/utils";
 
 import type {
   Dashboard,
@@ -50,13 +48,10 @@ function ClickBehaviorSidebar({
     if (clickBehavior) {
       return clickBehavior;
     }
-    if (isMappedExplicitActionButton(dashcard)) {
-      return { type: "action" };
-    }
     return { type: "actionMenu" };
-  }, [clickBehavior, dashcard]);
+  }, [clickBehavior]);
 
-  if (isTableDisplay(dashcard) && !hasSelectedColumn) {
+  if (isTableDisplay(dashcard) && !hasSelectedColumn && dashcard.card_id) {
     const columns = getIn(dashcardData, [dashcard.card_id, "data", "cols"]);
     return (
       <TableClickBehaviorView
@@ -96,4 +91,5 @@ function ClickBehaviorSidebar({
   );
 }
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default ClickBehaviorSidebar;

@@ -1,4 +1,5 @@
 import { t } from "ttag";
+import { isNotNull } from "metabase/core/utils/types";
 import { Collection, CollectionId, CollectionItem } from "metabase-types/api";
 
 export function nonPersonalOrArchivedCollection(
@@ -38,7 +39,7 @@ function getNonRootParentId(collection: Collection) {
     return nonRootParent ? nonRootParent.id : undefined;
   }
   // location is a string like "/1/4" where numbers are parent collection IDs
-  const nonRootParentId = collection.location?.split("/")?.[0];
+  const nonRootParentId = collection.location?.split("/")?.[1];
   return canonicalCollectionId(nonRootParentId);
 }
 
@@ -54,8 +55,18 @@ export function isPersonalCollectionChild(
   return Boolean(parentCollection && !!parentCollection.personal_owner_id);
 }
 
-export function isRootCollection(collection: Collection): boolean {
-  return canonicalCollectionId(collection.id) === null;
+export function isPersonalCollectionOrChild(
+  collection: Collection,
+  collectionList: Collection[],
+): boolean {
+  return (
+    isPersonalCollection(collection) ||
+    isPersonalCollectionChild(collection, collectionList)
+  );
+}
+
+export function isRootCollection(collection: Pick<Collection, "id">): boolean {
+  return canonicalCollectionId(collection?.id) === null;
 }
 
 export function isItemPinned(item: CollectionItem) {
@@ -64,6 +75,37 @@ export function isItemPinned(item: CollectionItem) {
 
 export function isItemQuestion(item: CollectionItem) {
   return item.model === "card";
+}
+
+export function isItemModel(item: CollectionItem) {
+  return item.model === "dataset";
+}
+
+export function isItemCollection(item: CollectionItem) {
+  return item.model === "collection";
+}
+
+export function canPinItem(item: CollectionItem, collection: Collection) {
+  return collection.can_write && item.setPinned != null;
+}
+
+export function canPreviewItem(item: CollectionItem, collection: Collection) {
+  return collection.can_write && isItemPinned(item) && isItemQuestion(item);
+}
+
+export function canMoveItem(item: CollectionItem, collection: Collection) {
+  return (
+    collection.can_write &&
+    item.setCollection != null &&
+    !(isItemCollection(item) && isPersonalCollection(item))
+  );
+}
+
+export function canArchiveItem(item: CollectionItem, collection: Collection) {
+  return (
+    collection.can_write &&
+    !(isItemCollection(item) && isPersonalCollection(item))
+  );
 }
 
 export function isPreviewShown(item: CollectionItem) {
@@ -89,7 +131,11 @@ export function coerceCollectionId(
 export function canonicalCollectionId(
   collectionId: string | number | null | undefined,
 ): number | null {
-  if (collectionId === "root" || collectionId == null) {
+  if (
+    collectionId === "root" ||
+    collectionId === null ||
+    collectionId === undefined
+  ) {
     return null;
   } else if (typeof collectionId === "number") {
     return collectionId;
@@ -120,14 +166,14 @@ function isPersonalOrPersonalChild(
 
 export function canManageCollectionAuthorityLevel(
   collection: Partial<Collection>,
-  collectionMap: Record<CollectionId, Collection>,
+  collectionMap: Partial<Record<CollectionId, Collection>>,
 ) {
   if (isPersonalCollection(collection)) {
     return false;
   }
   const parentId = coerceCollectionId(collection.parent_id);
   const parentCollection = collectionMap[parentId];
-  const collections = Object.values(collectionMap);
+  const collections = Object.values(collectionMap).filter(isNotNull);
   return (
     parentCollection &&
     !isPersonalOrPersonalChild(parentCollection, collections)

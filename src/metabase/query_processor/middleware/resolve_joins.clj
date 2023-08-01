@@ -2,15 +2,18 @@
   "Middleware that fetches tables that will need to be joined, referred to by `:field` clauses with `:source-field`
   options, and adds information to the query about what joins should be done and how they should be performed."
   (:refer-clojure :exclude [alias])
-  (:require [medley.core :as m]
-            [metabase.mbql.schema :as mbql.s]
-            [metabase.mbql.util :as mbql.u]
-            [metabase.query-processor.middleware.add-implicit-clauses :as qp.add-implicit-clauses]
-            [metabase.query-processor.store :as qp.store]
-            [metabase.util :as u]
-            [metabase.util.i18n :refer [tru]]
-            [metabase.util.schema :as su]
-            [schema.core :as s]))
+  (:require
+   [medley.core :as m]
+   [metabase.mbql.schema :as mbql.s]
+   [metabase.mbql.util :as mbql.u]
+   [metabase.query-processor.middleware.add-implicit-clauses
+    :as qp.add-implicit-clauses]
+   [metabase.query-processor.store :as qp.store]
+   [metabase.query-processor.util.add-alias-info :as add]
+   [metabase.util :as u]
+   [metabase.util.i18n :refer [tru]]
+   [metabase.util.schema :as su]
+   [schema.core :as s]))
 
 (def ^:private Joins
   "Schema for a non-empty sequence of Joins. Unlike [[mbql.s/Joins]], this does not enforce the constraint that all join
@@ -115,6 +118,28 @@
   [{breakouts :breakout, aggregations :aggregation}]
   (every? empty? [aggregations breakouts]))
 
+(defn- append-join-fields [fields join-fields]
+  (into []
+        (comp cat
+              (m/distinct-by (fn [clause]
+                               (-> clause
+                                   ;; remove namespaced options and other things that are definitely irrelevant
+                                   add/normalize-clause
+                                   ;; we shouldn't consider different type info to mean two Fields are different even if
+                                   ;; everything else is the same. So give everything `:base-type` of `:type/*` (it will
+                                   ;; complain if we remove `:base-type` entirely from fields with a string name)
+                                   (mbql.u/update-field-options (fn [opts]
+                                                                  (-> opts
+                                                                      (assoc :base-type :type/*)
+                                                                      (dissoc :effective-type))))))))
+        [fields join-fields]))
+
+(defn append-join-fields-to-fields
+  "Add the fields from join `:fields`, if any, to the parent-level `:fields`."
+  [inner-query join-fields]
+  (cond-> inner-query
+    (seq join-fields) (update :fields append-join-fields join-fields)))
+
 (s/defn ^:private merge-joins-fields :- UnresolvedMBQLQuery
   "Append the `:fields` from `:joins` into their parent level as appropriate so joined columns appear in the final
   query results, and remove the `:fields` entry for all joins.
@@ -130,11 +155,7 @@
                                                          (cond-> join
                                                            (keyword? fields) (dissoc :fields)))
                                                        joins)))]
-    (cond-> inner-query
-      (seq join-fields) (update :fields (fn [fields]
-                                          (into []
-                                                (comp cat (m/distinct-by mbql.u/remove-namespaced-options))
-                                                [fields join-fields]))))))
+    (append-join-fields-to-fields inner-query join-fields)))
 
 (s/defn ^:private resolve-joins-in-mbql-query :- ResolvedMBQLQuery
   [query :- mbql.s/MBQLQuery]

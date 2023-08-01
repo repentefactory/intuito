@@ -60,10 +60,10 @@ function createVirtualTableUsingQuestionMetadata(question: Question): Table {
   });
 
   return createVirtualTable({
-    id: getQuestionVirtualTableId(question.card()),
+    id: getQuestionVirtualTableId(question.id()),
     name: questionDisplayName,
     display_name: questionDisplayName,
-    db: question?.database(),
+    db: question?.database() ?? undefined,
     fields,
     metadata,
   });

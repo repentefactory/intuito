@@ -1,17 +1,19 @@
 (ns metabase.api.email
   "/api/email endpoints"
-  (:require [clojure.data :as data]
-            [clojure.set :as set]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [compojure.core :refer [DELETE POST PUT]]
-            [metabase.api.common :as api]
-            [metabase.api.common.validation :as validation]
-            [metabase.email :as email]
-            [metabase.models.setting :as setting]
-            [metabase.util :as u]
-            [metabase.util.i18n :refer [tru]]
-            [metabase.util.schema :as su]))
+  (:require
+   [clojure.data :as data]
+   [clojure.set :as set]
+   [clojure.string :as str]
+   [compojure.core :refer [DELETE POST PUT]]
+   [metabase.api.common :as api]
+   [metabase.api.common.validation :as validation]
+   [metabase.email :as email]
+   [metabase.models.setting :as setting]
+   [metabase.util :as u]
+   [metabase.util.i18n :refer [tru]]
+   [metabase.util.log :as log]))
+
+(set! *warn-on-reflection* true)
 
 (def ^:private mb-to-smtp-settings
   {:email-smtp-host     :host
@@ -75,7 +77,7 @@
    (for [[k v] corrections]
      [k (tru "{0} was autocorrected to {1}"
              (name (mb-to-smtp-settings k))
-             (str/upper-case v))])))
+             (u/upper-case-en v))])))
 
 (defn- env-var-values-by-email-setting
   "Returns a map of setting names (keywords) and env var values.
@@ -90,7 +92,7 @@
 (api/defendpoint PUT "/"
   "Update multiple email Settings. You must be a superuser or have `setting` permission to do this."
   [:as {settings :body}]
-  {settings su/Map}
+  {settings :map}
   (validation/check-has-application-permission :setting)
   (let [;; the frontend has access to an obfuscated version of the password. Watch for whether it sent us a new password or
         ;; the obfuscated version

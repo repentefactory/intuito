@@ -6,12 +6,12 @@ import { getMetadata } from "metabase/selectors/metadata";
 
 import { MetabaseApi, RevisionsApi } from "metabase/services";
 
-import Databases from "metabase/entities/databases";
 import Schemas from "metabase/entities/schemas";
 import Tables from "metabase/entities/tables";
 import Fields from "metabase/entities/fields";
 import Segments from "metabase/entities/segments";
 import Metrics from "metabase/entities/metrics";
+import Databases from "metabase/entities/databases";
 
 // NOTE: All of these actions are deprecated. Use metadata entities directly.
 
@@ -90,10 +90,10 @@ export const fetchField = createThunkAction(
     return async dispatch => {
       const action = await dispatch(Fields.actions.fetch({ id }, { reload }));
       const field = Fields.HACK_getObjectFromAction(action);
-      if (field?.dimensions?.human_readable_field_id != null) {
+      if (field?.dimensions?.[0]?.human_readable_field_id != null) {
         await dispatch(
           Fields.actions.fetch(
-            { id: field.dimensions.human_readable_field_id },
+            { id: field.dimensions?.[0]?.human_readable_field_id },
             { reload },
           ),
         );

@@ -6,7 +6,8 @@ export const createMockCollection = (
   id: 1,
   name: "Collection",
   description: null,
-  can_write: false,
+  location: "/",
+  can_write: true,
   archived: false,
   ...opts,
 });

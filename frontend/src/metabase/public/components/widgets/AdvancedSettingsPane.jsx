@@ -1,14 +1,15 @@
 /* eslint-disable react/prop-types */
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { t } from "ttag";
 import cx from "classnames";
 
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 import Button from "metabase/core/components/Button";
 import ParametersList from "metabase/parameters/components/ParametersList";
 import Select, { Option } from "metabase/core/components/Select";
 
 import { color } from "metabase/lib/colors";
+import { useUniqueId } from "metabase/hooks/use-unique-id";
 import { getValuePopulatedParameters } from "metabase-lib/parameters/utils/parameter-values";
 
 import DisplayOptionsPane from "./DisplayOptionsPane";
@@ -31,8 +32,6 @@ const AdvancedSettingsPane = ({
   displayOptions,
   onChangeDisplayOptions,
   onUnpublish,
-  pane,
-  onChangePane,
   previewParameters,
   parameterValues,
   onChangeParameterValue,
@@ -44,6 +43,7 @@ const AdvancedSettingsPane = ({
 
   return (
     <div
+      data-testid="embedding-settings"
       className={cx(className, "p4 full-height flex flex-column bg-light")}
       style={{ width: 400 }}
     >
@@ -73,6 +73,9 @@ const AdvancedSettingsPane = ({
               />
               <h3>{parameter.name}</h3>
               <Select
+                buttonProps={{
+                  "aria-label": parameter.name,
+                }}
                 className="ml-auto bg-white"
                 value={embeddingParams[parameter.slug] || "disabled"}
                 onChange={e =>
@@ -111,11 +114,17 @@ const AdvancedSettingsPane = ({
   );
 };
 
-const Section = ({ className, title, children }) => (
-  <div className={cx(className, "mb3 pb4 border-row-divider border-medium")}>
-    {title && <h3>{title}</h3>}
-    {children}
-  </div>
-);
+const Section = ({ className, title, children }) => {
+  const sectionId = useUniqueId();
+  return (
+    <section
+      className={cx(className, "mb3 pb4 border-row-divider border-medium")}
+      aria-labelledby={sectionId}
+    >
+      {title && <h3 id={sectionId}>{title}</h3>}
+      {children}
+    </section>
+  );
+};
 
 export default AdvancedSettingsPane;

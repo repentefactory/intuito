@@ -3,11 +3,9 @@ export const entityTypeForModel = model => {
   if (model === "card" || model === "dataset") {
     return "questions";
   }
-  if (model === "page") {
-    return "dashboards";
-  }
-  if (model === "app") {
-    return "dataApps";
+  if (model === "indexed-entity") {
+    // handle non-standard plural 🙃
+    return "indexedEntities";
   }
   return `${model}s`;
 };

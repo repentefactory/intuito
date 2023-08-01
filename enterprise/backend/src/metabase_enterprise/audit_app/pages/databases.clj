@@ -1,9 +1,10 @@
 (ns metabase-enterprise.audit-app.pages.databases
-  (:require [honeysql.core :as hsql]
-            [metabase-enterprise.audit-app.interface :as audit.i]
-            [metabase-enterprise.audit-app.pages.common :as common]
-            [metabase.util.cron :as u.cron]
-            [schema.core :as s]))
+  (:require
+   [metabase-enterprise.audit-app.interface :as audit.i]
+   [metabase-enterprise.audit-app.pages.common :as common]
+   [metabase.util.cron :as u.cron]
+   [metabase.util.honey-sql-2 :as h2x]
+   [metabase.util.malli :as mu]))
 
 ;; SELECT
 ;;   db.id AS database_id,
@@ -29,17 +30,17 @@
               {:select   [[:db.id :database_id]
                           [:db.name :database_name]
                           [:%count.* :queries]
-                          [:%avg.qe.running_time :avg_running_time]]
+                          [[:avg :qe.running_time] :avg_running_time]]
                :from     [[:query_execution :qe]]
                :join     [[:report_card :card]     [:= :qe.card_id :card.id]
                           [:metabase_table :t]     [:= :card.table_id :t.id]
                           [:metabase_database :db] [:= :t.db_id :db.id]]
                :group-by [:db.id]
-               :order-by [[:%lower.db.name :asc]]})})
+               :order-by [[[:lower :db.name] :asc]]})})
 
 ;; Query that returns count of query executions grouped by Database and a `datetime-unit`.
-(s/defmethod audit.i/internal-query ::query-executions-by-time
-  [_ datetime-unit :- common/DateTimeUnitStr]
+(mu/defmethod audit.i/internal-query ::query-executions-by-time
+  [_query-type datetime-unit :- common/DateTimeUnitStr]
   {:metadata [[:date          {:display_name "Date",          :base_type (common/datetime-unit-str->base-type datetime-unit)}]
               [:database_id   {:display_name "Database ID",   :base_type :type/Integer, :remapped_to   :database_name}]
               [:database_name {:display_name "Database Name", :base_type :type/Name,    :remapped_from :database_id}]
@@ -63,7 +64,7 @@
                :from      [:qx]
                :left-join [[:metabase_database :db] [:= :qx.database_id :db.id]]
                :order-by  [[:qx.date :asc]
-                           [:%lower.db.name :asc]
+                           [[:lower :db.name] :asc]
                            [:qx.database_id :asc]]})})
 
 ;; DEPRECATED Use `::query-executions-by-time` instead. Query that returns count of query executions grouped by
@@ -73,10 +74,10 @@
   (audit.i/internal-query ::query-executions-by-time "day"))
 
 ;; Table with information and statistics about all the data warehouse Databases in this Metabase instance.
-(s/defmethod audit.i/internal-query ::table
+(mu/defmethod audit.i/internal-query ::table
   ([query-type]
    (audit.i/internal-query query-type nil))
-  ([_ query-string :- (s/maybe s/Str)]
+  ([_query-type query-string :- [:maybe :string]]
    ;; TODO - Should we convert sync_schedule from a cron string into English? Not sure that's going to be feasible for
    ;; really complicated schedules
    {:metadata [[:database_id   {:display_name "Database ID", :base_type :type/Integer, :remapped_to :title}]
@@ -89,7 +90,7 @@
     :results  (common/reducible-query
                (->
                 {:with      [[:counts {:select   [[:db_id :id]
-                                                  [(hsql/call :distinct-count :schema) :schemas]
+                                                  [[::h2x/distinct-count :schema] :schemas]
                                                   [:%count.* :tables]]
                                        :from     [:metabase_table]
                                        :group-by [:db_id]}]]
@@ -102,7 +103,7 @@
                              [:db.cache_ttl :cache_ttl]]
                  :from      [[:metabase_database :db]]
                  :left-join [:counts [:= :db.id :counts.id]]
-                 :order-by  [[:%lower.db.name :asc]
+                 :order-by  [[[:lower :db.name] :asc]
                              [:database_id :asc]]}
                 (common/add-search-clause query-string :db.name)))
     :xform    (map #(update (vec %) 3 u.cron/describe-cron-string))}))

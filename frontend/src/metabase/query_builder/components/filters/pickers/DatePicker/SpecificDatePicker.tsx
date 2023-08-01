@@ -1,9 +1,10 @@
-import React from "react";
+import { useState } from "react";
 import { t } from "ttag";
 
 import moment, { Moment } from "moment-timezone";
 import { getDateStyleFromSettings } from "metabase/lib/time";
 import Calendar, { SelectAll } from "metabase/components/Calendar";
+import InputBlurChange from "metabase/components/InputBlurChange";
 import ExpandingContent from "metabase/components/ExpandingContent";
 import {
   getTimeComponent,
@@ -11,11 +12,7 @@ import {
 } from "metabase-lib/queries/utils/query-time";
 import HoursMinutesInput from "./HoursMinutesInput";
 
-import {
-  CalendarIcon,
-  DateInput,
-  DateInputContainer,
-} from "./SpecificDatePicker.styled";
+import { DateInputContainer } from "./SpecificDatePicker.styled";
 
 interface SpecificDatePickerProps {
   className?: string;
@@ -44,7 +41,7 @@ const SpecificDatePicker = ({
   onChange,
   onClear,
 }: SpecificDatePickerProps) => {
-  const [showCalendar, setShowCalendar] = React.useState(true);
+  const [showCalendar, setShowCalendar] = useState(true);
   const { hours, minutes, date } = getTimeComponent(value);
 
   const showTimeSelectors =
@@ -64,12 +61,12 @@ const SpecificDatePicker = ({
   return (
     <div className={className} data-testid="specific-date-picker">
       <DateInputContainer isActive={isActive}>
-        <DateInput
+        <InputBlurChange
           placeholder={moment().format(dateFormat)}
           value={date ? date.format(dateFormat) : ""}
           autoFocus={autoFocus}
           onFocus={onFocus}
-          onBlurChange={({ target: { value } }: any) => {
+          onBlurChange={({ target: { value } }) => {
             const date = moment(value, dateFormat);
             if (date.isValid()) {
               handleChange(date, hours, minutes);
@@ -77,15 +74,10 @@ const SpecificDatePicker = ({
               handleChange();
             }
           }}
+          rightIcon={hasCalendar ? "calendar" : undefined}
+          onRightIconClick={() => setShowCalendar(!showCalendar)}
+          rightIconTooltip={showCalendar ? t`Hide calendar` : t`Show calendar`}
         />
-
-        {hasCalendar && (
-          <CalendarIcon
-            name="calendar"
-            onClick={() => setShowCalendar(!showCalendar)}
-            tooltip={showCalendar ? t`Hide calendar` : t`Show calendar`}
-          />
-        )}
       </DateInputContainer>
 
       {showTimeSelectors && (
@@ -120,4 +112,5 @@ const SpecificDatePicker = ({
   );
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default SpecificDatePicker;

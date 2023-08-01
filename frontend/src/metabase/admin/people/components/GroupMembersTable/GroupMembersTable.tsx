@@ -1,12 +1,9 @@
-/* eslint-disable react/prop-types */
-import React, { useMemo } from "react";
-import PropTypes from "prop-types";
+import { Fragment, useMemo } from "react";
 import { t } from "ttag";
 
 import { isAdminGroup, isDefaultGroup } from "metabase/lib/groups";
 import { getFullName } from "metabase/lib/user";
-import Icon from "metabase/components/Icon";
-import AdminEmptyText from "metabase/components/AdminEmptyText";
+import { Icon } from "metabase/core/components/Icon";
 import AdminContentTable from "metabase/components/AdminContentTable";
 import PaginationControls from "metabase/components/PaginationControls";
 
@@ -64,7 +61,7 @@ function GroupMembersTable({
   const canRemove = (user: IUser) =>
     !isDefaultGroup(group) && !(isAdminGroup(group) && isCurrentUser(user));
 
-  const hasMembers = groupMemberships.length > 0;
+  const hasMembers = group.members.length > 0;
 
   const handleAddUser: GroupMembersTableProps["onAddUserDone"] =
     async userIds => {
@@ -89,7 +86,7 @@ function GroupMembersTable({
   );
 
   return (
-    <React.Fragment>
+    <Fragment>
       <AdminContentTable columnTitles={columnTitles}>
         {showAddUser && (
           <AddMemberRow
@@ -127,15 +124,14 @@ function GroupMembersTable({
       )}
       {!hasMembers && (
         <div className="mt4 pt4 flex layout-centered">
-          <AdminEmptyText
-            message={t`A group is only as good as its members.`}
-          />
+          <h2 className="text-medium">{t`A group is only as good as its members.`}</h2>
         </div>
       )}
-    </React.Fragment>
+    </Fragment>
   );
 }
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default User.loadList({
   reload: true,
   pageSize: 25,

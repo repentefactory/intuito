@@ -1,11 +1,10 @@
-import React from "react";
 import { Group } from "@visx/group";
 import { RowChart } from "metabase/visualizations/shared/components/RowChart";
-import {
+import type {
   FontStyle,
-  TextMeasurer,
+  TextWidthMeasurer,
 } from "metabase/visualizations/shared/types/measure-text";
-import { measureText } from "metabase/static-viz/lib/text";
+import { measureTextWidth } from "metabase/static-viz/lib/text";
 import { getStackOffset } from "metabase/visualizations/lib/settings/stacking";
 import {
   getGroupedDataset,
@@ -14,7 +13,10 @@ import {
 import { getChartGoal } from "metabase/visualizations/lib/settings/goal";
 import { VisualizationSettings } from "metabase-types/api";
 import { ColorGetter } from "metabase/static-viz/lib/colors";
-import { TwoDimensionalChartData } from "metabase/visualizations/shared/types/data";
+import {
+  RemappingHydratedChartData,
+  TwoDimensionalChartData,
+} from "metabase/visualizations/shared/types/data";
 import { getTwoDimensionalChartSeries } from "metabase/visualizations/shared/utils/series";
 import {
   getAxesVisibility,
@@ -26,6 +28,7 @@ import {
   getLabelsStaticFormatter,
   getStaticFormatters,
 } from "metabase/static-viz/lib/format";
+import { extractRemappedColumns } from "metabase/visualizations";
 import { calculateLegendRows } from "../Legend/utils";
 import { Legend } from "../Legend";
 
@@ -48,23 +51,29 @@ interface StaticRowChartProps {
   getColor: ColorGetter;
 }
 
-const staticTextMeasurer: TextMeasurer = (text: string, style: FontStyle) =>
-  measureText(
+const staticTextMeasurer: TextWidthMeasurer = (
+  text: string,
+  style: FontStyle,
+) =>
+  measureTextWidth(
     text,
     parseInt(style.size.toString(), 10),
     style.weight ? parseInt(style.weight.toString(), 10) : 400,
   );
 
 const StaticRowChart = ({ data, settings, getColor }: StaticRowChartProps) => {
+  const remappedColumnsData = extractRemappedColumns(
+    data,
+  ) as RemappingHydratedChartData;
   const columnValueFormatter = getColumnValueStaticFormatter();
 
   const { chartColumns, series, seriesColors } = getTwoDimensionalChartSeries(
-    data,
+    remappedColumnsData,
     settings,
     columnValueFormatter,
   );
   const groupedData = getGroupedDataset(
-    data.rows,
+    remappedColumnsData.rows,
     chartColumns,
     columnValueFormatter,
   );
@@ -117,7 +126,7 @@ const StaticRowChart = ({ data, settings, getColor }: StaticRowChartProps) => {
           stackOffset={stackOffset}
           tickFormatters={tickFormatters}
           labelsFormatter={labelsFormatter}
-          measureText={staticTextMeasurer}
+          measureTextWidth={staticTextMeasurer}
           xLabel={xLabel}
           yLabel={yLabel}
           hasXAxis={hasXAxis}
@@ -131,4 +140,5 @@ const StaticRowChart = ({ data, settings, getColor }: StaticRowChartProps) => {
   );
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default StaticRowChart;

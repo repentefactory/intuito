@@ -1,22 +1,26 @@
 (ns metabase.query-processor.middleware.add-implicit-clauses-test
-  (:require [clojure.test :refer :all]
-            [medley.core :as m]
-            [metabase.mbql.util :as mbql.u]
-            [metabase.models.field :refer [Field]]
-            [metabase.query-processor :as qp]
-            [metabase.query-processor.middleware.add-implicit-clauses :as qp.add-implicit-clauses]
-            [metabase.query-processor.middleware.add-source-metadata :as add-source-metadata]
-            [metabase.query-processor.test-util :as qp.test-util]
-            [metabase.test :as mt]
-            [metabase.util :as u]
-            [schema.core :as s]
-            [toucan.db :as db]))
+  (:require
+   [clojure.test :refer :all]
+   [medley.core :as m]
+   [metabase.mbql.util :as mbql.u]
+   [metabase.models.field :refer [Field]]
+   [metabase.query-processor :as qp]
+   [metabase.query-processor.middleware.add-implicit-clauses
+    :as qp.add-implicit-clauses]
+   [metabase.query-processor.middleware.add-source-metadata
+    :as add-source-metadata]
+   [metabase.query-processor.test-util :as qp.test-util]
+   [metabase.test :as mt]
+   [metabase.util :as u]
+   [schema.core :as s]
+   [toucan2.core :as t2]
+   [toucan2.tools.with-temp :as t2.with-temp]))
 
 (deftest ordering-test
   (testing "check we fetch Fields in the right order"
     (mt/with-temp-vals-in-db Field (mt/id :venues :price) {:position -1}
       (let [ids       (map second (#'qp.add-implicit-clauses/sorted-implicit-fields-for-table (mt/id :venues)))
-            id->field (m/index-by :id (db/select [Field :id :position :name :semantic_type] :id [:in ids]))]
+            id->field (m/index-by :id (t2/select [Field :id :position :name :semantic_type] :id [:in ids]))]
         (is (= [ ;; sorted first because it has lowest positon
                 {:position -1, :name "PRICE", :semantic_type :type/Category}
                 ;; PK
@@ -99,7 +103,7 @@
 
 (deftest default-bucketing-test
   (testing "datetime Fields should get default bucketing of :day"
-    (mt/with-temp Field [field {:table_id (mt/id :venues), :position 2, :name "aaaaa", :base_type :type/DateTime}]
+    (t2.with-temp/with-temp [Field field {:table_id (mt/id :venues), :position 2, :name "aaaaa", :base_type :type/DateTime}]
       (is (= (:query
               (mt/mbql-query venues
                 {:fields [$id $name

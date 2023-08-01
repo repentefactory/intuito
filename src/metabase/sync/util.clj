@@ -1,31 +1,33 @@
 (ns metabase.sync.util
   "Utility functions and macros to abstract away some common patterns and operations across the sync processes, such
   as logging start/end messages."
-  (:require [buddy.core.hash :as buddy-hash]
-            [clojure.math.numeric-tower :as math]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [java-time :as t]
-            [medley.core :as m]
-            [metabase.driver :as driver]
-            [metabase.driver.util :as driver.u]
-            [metabase.events :as events]
-            [metabase.models.database :refer [Database]]
-            [metabase.models.field :refer [Field]]
-            [metabase.models.interface :as mi]
-            [metabase.models.table :refer [Table]]
-            [metabase.models.task-history :refer [TaskHistory]]
-            [metabase.query-processor.interface :as qp.i]
-            [metabase.sync.interface :as i]
-            [metabase.util :as u]
-            [metabase.util.date-2 :as u.date]
-            [metabase.util.i18n :refer [trs]]
-            [metabase.util.schema :as su]
-            [ring.util.codec :as codec]
-            [schema.core :as s]
-            [taoensso.nippy :as nippy]
-            [toucan.db :as db])
-  (:import java.time.temporal.Temporal))
+  (:require
+   [clojure.math.numeric-tower :as math]
+   [clojure.string :as str]
+   [java-time :as t]
+   [medley.core :as m]
+   [metabase.driver :as driver]
+   [metabase.driver.util :as driver.u]
+   [metabase.events :as events]
+   [metabase.models.database :refer [Database]]
+   [metabase.models.field :refer [Field]]
+   [metabase.models.interface :as mi]
+   [metabase.models.table :refer [Table]]
+   [metabase.models.task-history :refer [TaskHistory]]
+   [metabase.query-processor.interface :as qp.i]
+   [metabase.sync.interface :as i]
+   [metabase.util :as u]
+   [metabase.util.date-2 :as u.date]
+   [metabase.util.i18n :refer [trs]]
+   [metabase.util.log :as log]
+   [metabase.util.schema :as su]
+   [schema.core :as s]
+   [toucan.db :as db]
+   [toucan2.core :as t2])
+  (:import
+   (java.time.temporal Temporal)))
+
+(set! *warn-on-reflection* true)
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                          SYNC OPERATION "MIDDLEWARE"                                           |
@@ -72,7 +74,7 @@
 
 (defn- with-sync-events
   "Publish events related to beginning and ending a sync-like process, e.g. `:sync-database` or `:cache-values`, for a
-  DATABASE-ID. F is executed between the logging of the two events."
+  `database-id`. `f` is executed between the logging of the two events."
   ;; we can do everyone a favor and infer the name of the individual begin and sync events
   ([event-name-prefix database-or-id f]
    (with-sync-events
@@ -83,7 +85,7 @@
   ([begin-event-name end-event-name database-or-id f]
    (fn []
      (let [start-time    (System/nanoTime)
-           tracking-hash (str (java.util.UUID/randomUUID))]
+           tracking-hash (str (random-uuid))]
        (events/publish-event! begin-event-name {:database_id (u/the-id database-or-id), :custom_id tracking-hash})
        (let [return        (f)
              total-time-ms (int (/ (- (System/nanoTime) start-time)
@@ -267,19 +269,19 @@
   "Marks initial sync as complete for this table so that it becomes usable in the UI, if not already set"
   [table]
   (when (not= (:initial_sync_status table) "complete")
-    (db/update! Table (u/the-id table) :initial_sync_status "complete")))
+    (t2/update! Table (u/the-id table) {:initial_sync_status "complete"})))
 
 (defn set-initial-database-sync-complete!
   "Marks initial sync as complete for this database so that this is reflected in the UI, if not already set"
   [database]
   (when (not= (:initial_sync_status database) "complete")
-    (db/update! Database (u/the-id database) :initial_sync_status "complete")))
+    (t2/update! Database (u/the-id database) {:initial_sync_status "complete"})))
 
 (defn set-initial-database-sync-aborted!
   "Marks initial sync as aborted for this database so that an error can be displayed on the UI"
   [database]
   (when (not= (:initial_sync_status database) "complete")
-    (db/update! Database (u/the-id database) :initial_sync_status "aborted")))
+    (t2/update! Database (u/the-id database) {:initial_sync_status "aborted"})))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                          OTHER SYNC UTILITY FUNCTIONS                                          |
@@ -288,7 +290,7 @@
 (defn db->sync-tables
   "Return all the Tables that should go through the sync processes for `database-or-id`."
   [database-or-id]
-  (db/select Table, :db_id (u/the-id database-or-id), :active true, :visibility_type nil))
+  (t2/select Table, :db_id (u/the-id database-or-id), :active true, :visibility_type nil))
 
 (defmulti name-for-logging
   "Return an appropriate string for logging an object in sync logging messages. Should be something like
@@ -302,7 +304,7 @@
 
 (defmethod name-for-logging Database
   [{database-name :name, id :id, engine :engine,}]
-  (trs "{0} Database {1} ''{2}''" (name engine) (or id "") database-name))
+  (trs "{0} Database {1} ''{2}''" (name engine) (str (or id "")) database-name))
 
 (defmethod name-for-logging Table [{schema :schema, id :id, table-name :name}]
   (trs "Table {0} ''{1}''" (or id "") (str (when (seq schema) (str schema ".")) table-name)))
@@ -313,16 +315,6 @@
 ;;; this is used for result metadata stuff.
 (defmethod name-for-logging :default [{field-name :name}]
   (trs "Field ''{0}''" field-name))
-
-(defn calculate-hash
-  "Calculate a cryptographic hash on `clj-data` and return that hash as a string"
-  [clj-data]
-  (->> clj-data
-       ;; Serialize the sorted list to bytes that can be hashed
-       nippy/fast-freeze
-       buddy-hash/md5
-       ;; Convert the hash bytes to a string for storage/comparison with the hash in the database
-       codec/base64-encode))
 
 (s/defn calculate-duration-str :- s/Str
   "Given two datetimes, caculate the time between them, return the result as a string"
@@ -466,10 +458,9 @@
                   :task_details (when (seq task-details)
                                   task-details)))
          (cons (create-task-history operation database sync-md))
-         ;; Using `insert!` instead of `insert-many!` here to make sure
-         ;; `post-insert` is triggered
-         (map #(db/insert! TaskHistory %))
-         (map :id)
+         ;; can't do `(t2/insert-returning-instances!)` with a seq because of this bug https://github.com/camsaul/toucan2/issues/130
+         (map #(t2/insert-returning-pks! TaskHistory %))
+         (map first)
          doall)
     (catch Throwable e
       (log/warn e (trs "Error saving task history")))))

@@ -1,3 +1,25 @@
+import { RowValue } from "./dataset";
+import { FieldReference } from "./query";
+import { Table, TableId } from "./table";
+
+export type FieldId = number;
+
+export interface FieldFingerprint {
+  global?: FieldGlobalFingerprint;
+  type?: FieldTypeFingerprint;
+}
+
+export interface FieldGlobalFingerprint {
+  "distinct-count"?: number;
+  "nil%"?: number;
+}
+
+export interface FieldTypeFingerprint {
+  "type/Text"?: TextFieldFingerprint;
+  "type/Number"?: NumberFieldFingerprint;
+  "type/DateTime"?: DateTimeFieldFingerprint;
+}
+
 export type TextFieldFingerprint = {
   "average-length": number;
   "percent-email": number;
@@ -16,35 +38,92 @@ export type NumberFieldFingerprint = {
 };
 
 export type DateTimeFieldFingerprint = {
-  earliest: "2016-04-26T19:29:55.147Z";
-  latest: "2019-04-15T13:34:19.931Z";
+  earliest: string;
+  latest: string;
 };
 
-export interface FieldFingerprint {
-  global: {
-    "distinct-count"?: number;
-    "nil%": number;
-  };
-  type?: {
-    "type/Text"?: TextFieldFingerprint;
-    "type/Number"?: NumberFieldFingerprint;
-    "type/DateTime"?: DateTimeFieldFingerprint;
-  };
-}
+export type FieldVisibilityType =
+  | "details-only"
+  | "hidden"
+  | "normal"
+  | "retired"
+  | "sensitive";
 
-export interface Field {
-  id?: number;
-  dimensions?: FieldDimension;
-  display_name: string;
-  table_id: number | string;
-  name: string;
-  base_type: string;
-  description: string | null;
-  nfc_path: string[] | null;
+type HumanReadableFieldValue = string;
+export type FieldValue = [RowValue] | [RowValue, HumanReadableFieldValue];
 
-  fingerprint?: FieldFingerprint;
-}
+export type FieldValuesType = "list" | "search" | "none";
+
+export type FieldDimensionType = "internal" | "external";
 
 export type FieldDimension = {
+  type: FieldDimensionType;
   name: string;
+  human_readable_field_id?: FieldId;
+  human_readable_field?: Field;
 };
+
+export type FieldDimensionOption = {
+  name: string;
+  mbql: unknown[] | null;
+  type: string;
+};
+
+export interface Field {
+  id: FieldId | FieldReference;
+  table_id: TableId;
+  table?: Table;
+  field_ref?: FieldReference;
+
+  name: string;
+  display_name: string;
+  description: string | null;
+
+  base_type: string;
+  effective_type?: string;
+  semantic_type: string | null;
+
+  active: boolean;
+  visibility_type: FieldVisibilityType;
+  preview_display: boolean;
+  position: number;
+
+  parent_id?: FieldId;
+  fk_target_field_id: FieldId | null;
+  target?: Field;
+  values?: FieldValue[];
+  remappings?: FieldValue[];
+  settings?: FieldFormattingSettings;
+
+  dimensions?: FieldDimension[];
+  default_dimension_option?: FieldDimensionOption;
+  dimension_options?: FieldDimensionOption[];
+  name_field?: Field;
+
+  max_value?: number;
+  min_value?: number;
+  has_field_values: FieldValuesType;
+  has_more_values?: boolean;
+
+  caveats?: string | null;
+  points_of_interest?: string;
+
+  nfc_path: string[] | null;
+  json_unfolding: boolean | null;
+  coercion_strategy: string | null;
+  fingerprint: FieldFingerprint | null;
+
+  last_analyzed: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FieldValues {
+  field_id: FieldId;
+  values: FieldValue[];
+  has_more_values: boolean;
+}
+
+export interface FieldFormattingSettings {
+  currency?: string;
+}

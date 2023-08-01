@@ -2,26 +2,33 @@ import styled from "@emotion/styled";
 import Modal from "metabase/components/Modal";
 import { breakpointMinMedium } from "metabase/styled-components/theme/media-queries";
 import { color } from "metabase/lib/colors";
+import TableFooter from "../TableSimple/TableFooter";
 
-interface ObjectDetailModalProps {
+interface ObjectDetailContainerProps {
   wide: boolean;
 }
 
-export const CenteredLayout = styled.div`
-  display: flex;
-  flex: 1;
-  justify-content: center;
-  align-items: center;
-`;
-
-export const ObjectDetailModal = styled.div<ObjectDetailModalProps>`
-  overflow-y: scroll;
+export const ObjectDetailContainer = styled.div<ObjectDetailContainerProps>`
+  overflow-y: auto;
   height: 100%;
+`;
+export const ObjectDetailWrapperDiv = styled.div`
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 `;
 
 export const ObjectDetailBodyWrapper = styled.div`
   font-size: 1rem;
+  flex: 1;
   overflow-y: auto;
+`;
+
+export const ObjectDetailHeaderWrapper = styled.div`
+  flex-shrink: 0;
+  display: flex;
+  position: relative;
+  border-bottom: 1px solid ${color("border")};
 `;
 
 export const ObjectIdLabel = styled.span`
@@ -47,13 +54,13 @@ export const CloseButton = styled.div`
   margin-left: 1rem;
   padding-left: 1rem;
   border-left: 1px solid ${color("border")};
-  ${breakpointMinMedium} {
-    display: none;
-  }
 `;
 
 export const ErrorWrapper = styled.div`
   height: 480px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 `;
 
 type GridContainerProps = { cols?: number };
@@ -73,8 +80,15 @@ export const GridCell = styled.div<GridItemProps>`
     ${props => props.colSpan || 1};
 `;
 
+export const FitImage = styled.img`
+  max-width: 100%;
+  max-height: 18rem;
+  object-fit: contain;
+  margin: 1rem auto;
+`;
+
 export const RootModal = styled(Modal)`
-  ${ObjectDetailModal} {
+  ${ObjectDetailContainer} {
     overflow: hidden;
     ${breakpointMinMedium} {
       width: ${({ wide }) => (wide ? "64rem" : "48rem")};
@@ -125,4 +139,9 @@ export const ObjectRelationContent = styled.div<ObjectRelationshipContentProps>`
   &:hover {
     color: ${props => props.isClickable && color("brand")};
   }
+`;
+
+export const PaginationFooter = styled(TableFooter)`
+  margin-top: 0.5rem;
+  text-align: right;
 `;

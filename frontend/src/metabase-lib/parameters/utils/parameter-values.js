@@ -1,4 +1,10 @@
-import { getParameterType } from "metabase-lib/parameters/utils/parameter-type";
+import _ from "underscore";
+import { getParameterType } from "./parameter-type";
+import {
+  getQueryType,
+  getSourceConfig,
+  getSourceType,
+} from "./parameter-source";
 
 export function getValuePopulatedParameters(parameters, parameterValues) {
   return parameterValues
@@ -19,6 +25,32 @@ export function hasDefaultParameterValue(parameter) {
 
 export function hasParameterValue(value) {
   return value != null;
+}
+
+export function normalizeParameter(parameter) {
+  return {
+    id: parameter.id,
+    name: parameter.name,
+    slug: parameter.slug,
+    type: parameter.type,
+    target: parameter.target,
+    options: parameter.options,
+    values_query_type: getQueryType(parameter),
+    values_source_type: getSourceType(parameter),
+    values_source_config: getSourceConfig(parameter),
+  };
+}
+
+export function normalizeParameters(parameters) {
+  return parameters
+    .filter(parameter => _.has(parameter, "value"))
+    .map(({ id, type, value, target, options }) => ({
+      id,
+      type,
+      value: normalizeParameterValue(type, value),
+      target,
+      options,
+    }));
 }
 
 export function normalizeParameterValue(type, value) {

@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { t } from "ttag";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
@@ -11,9 +11,10 @@ import * as Urls from "metabase/lib/urls";
 import type { Collection } from "metabase-types/api";
 import type { State } from "metabase-types/store";
 
-import CreateCollectionForm, {
+import {
+  CreateCollectionForm,
   CreateCollectionFormOwnProps,
-} from "./CreateCollectionForm";
+} from "../components/CreateCollectionForm";
 
 interface CreateCollectionModalOwnProps
   extends Omit<CreateCollectionFormOwnProps, "onCancel"> {
@@ -59,6 +60,7 @@ function CreateCollectionModal({
   );
 }
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default connect<
   unknown,
   CreateCollectionModalDispatchProps,

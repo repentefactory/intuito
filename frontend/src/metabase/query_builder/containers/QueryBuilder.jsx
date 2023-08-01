@@ -1,20 +1,15 @@
 /* eslint-disable react/prop-types */
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { connect } from "react-redux";
 import { push } from "react-router-redux";
 import { t } from "ttag";
 import _ from "underscore";
 
-import { PLUGIN_SELECTORS } from "metabase/plugins";
+import { useMount, useUnmount, usePrevious } from "react-use";
 import Bookmark from "metabase/entities/bookmarks";
 import Collections from "metabase/entities/collections";
 import Timelines from "metabase/entities/timelines";
+import { getSetting } from "metabase/selectors/settings";
 
 import { closeNavbar, getIsNavbarOpen } from "metabase/redux/app";
 import { getMetadata } from "metabase/selectors/metadata";
@@ -25,15 +20,17 @@ import {
 } from "metabase/selectors/user";
 
 import { useForceUpdate } from "metabase/hooks/use-force-update";
-import { useOnMount } from "metabase/hooks/use-on-mount";
-import { useOnUnmount } from "metabase/hooks/use-on-unmount";
-import { usePrevious } from "metabase/hooks/use-previous";
+
 import { useLoadingTimer } from "metabase/hooks/use-loading-timer";
 import { useWebNotification } from "metabase/hooks/use-web-notification";
 
 import title from "metabase/hoc/Title";
 import titleWithLoadingTime from "metabase/hoc/TitleWithLoadingTime";
 import favicon from "metabase/hoc/Favicon";
+
+import useBeforeUnload from "metabase/hooks/use-before-unload";
+import { useSelector } from "metabase/lib/redux";
+import { getWhiteLabeledLoadingMessage } from "metabase/selectors/whitelabel";
 
 import View from "../components/view/View";
 
@@ -47,10 +44,8 @@ import {
   getQueryResults,
   getParameterValues,
   getIsDirty,
-  getIsNew,
   getIsObjectDetail,
   getTables,
-  getTableMetadata,
   getTableForeignKeys,
   getTableForeignKeyReferences,
   getUiControls,
@@ -76,8 +71,8 @@ import {
   getNativeEditorCursorOffset,
   getNativeEditorSelectedText,
   getIsBookmarked,
-  getVisibleTimelineIds,
   getVisibleTimelineEvents,
+  getVisibleTimelineEventIds,
   getSelectedTimelineEventIds,
   getFilteredTimelines,
   getTimeseriesXDomain,
@@ -91,8 +86,11 @@ import {
   getIsAdditionalInfoVisible,
   getAutocompleteResultsFn,
   getCardAutocompleteResultsFn,
+  isResultsMetadataDirty,
+  getShouldShowUnsavedChangesWarning,
 } from "../selectors";
 import * as actions from "../actions";
+import { VISUALIZATION_SLOW_TIMEOUT } from "../constants";
 
 const timelineProps = {
   query: { include: "events" },
@@ -104,7 +102,7 @@ const mapStateToProps = (state, props) => {
     user: getUser(state, props),
     canManageSubscriptions: canManageSubscriptions(state, props),
     isAdmin: getUserIsAdmin(state, props),
-    fromUrl: props.location.query.from,
+    fromUrl: props.location.query?.from,
 
     mode: getMode(state),
 
@@ -122,15 +120,14 @@ const mapStateToProps = (state, props) => {
     databases: getDatabasesList(state),
     nativeDatabases: getNativeDatabases(state),
     tables: getTables(state),
-    tableMetadata: getTableMetadata(state),
 
     query: getQuery(state),
     metadata: getMetadata(state),
 
     timelines: getFilteredTimelines(state),
     timelineEvents: getVisibleTimelineEvents(state),
-    visibleTimelineIds: getVisibleTimelineIds(state),
     selectedTimelineEventIds: getSelectedTimelineEventIds(state),
+    visibleTimelineEventIds: getVisibleTimelineEventIds(state),
     xDomain: getTimeseriesXDomain(state),
 
     result: getFirstQueryResult(state),
@@ -144,7 +141,6 @@ const mapStateToProps = (state, props) => {
 
     isBookmarked: getIsBookmarked(state, props),
     isDirty: getIsDirty(state),
-    isNew: getIsNew(state),
     isObjectDetail: getIsObjectDetail(state),
     isNativeEditorOpen: getIsNativeEditorOpen(state),
     isNavBarOpen: getIsNavbarOpen(state),
@@ -161,6 +157,7 @@ const mapStateToProps = (state, props) => {
 
     isRunnable: getIsRunnable(state),
     isResultDirty: getIsResultDirty(state),
+    isMetadataDirty: isResultsMetadataDirty(state),
 
     questionAlerts: getQuestionAlerts(state),
     visualizationSettings: getVisualizationSettings(state),
@@ -180,7 +177,9 @@ const mapStateToProps = (state, props) => {
     documentTitle: getDocumentTitle(state),
     pageFavicon: getPageFavicon(state),
     isLoadingComplete: getIsLoadingComplete(state),
-    loadingMessage: PLUGIN_SELECTORS.getLoadingMessage(state),
+    loadingMessage: getWhiteLabeledLoadingMessage(state),
+
+    reportTimezone: getSetting(state, "report-timezone-long"),
   };
 };
 
@@ -217,6 +216,7 @@ function QueryBuilder(props) {
     showTimelinesForCollection,
     card,
     isLoadingComplete,
+    closeQB,
   } = props;
 
   const forceUpdate = useForceUpdate();
@@ -265,26 +265,20 @@ function QueryBuilder(props) {
   };
 
   const handleCreate = useCallback(
-    async card => {
-      const shouldBePinned = Boolean(card.dataset);
-
-      const questionWithUpdatedCard = question
-        .setCard(card)
-        .setPinned(shouldBePinned);
-
-      await apiCreateQuestion(questionWithUpdatedCard);
+    async newQuestion => {
+      const shouldBePinned = newQuestion.isDataset();
+      await apiCreateQuestion(newQuestion.setPinned(shouldBePinned));
 
       setRecentlySaved("created");
     },
-    [question, apiCreateQuestion, setRecentlySaved],
+    [apiCreateQuestion, setRecentlySaved],
   );
 
   const handleSave = useCallback(
-    async (card, { rerunQuery = false } = {}) => {
-      const questionWithUpdatedCard = question.setCard(card);
-      await apiUpdateQuestion(questionWithUpdatedCard, { rerunQuery });
+    async (updatedQuestion, { rerunQuery } = {}) => {
+      await apiUpdateQuestion(updatedQuestion, { rerunQuery });
       if (!rerunQuery) {
-        await updateUrl(questionWithUpdatedCard.card(), { dirty: false });
+        await updateUrl(updatedQuestion, { dirty: false });
       }
       if (fromUrl) {
         onChangeLocation(fromUrl);
@@ -292,28 +286,27 @@ function QueryBuilder(props) {
         setRecentlySaved("updated");
       }
     },
-    [
-      question,
-      fromUrl,
-      apiUpdateQuestion,
-      updateUrl,
-      onChangeLocation,
-      setRecentlySaved,
-    ],
+    [fromUrl, apiUpdateQuestion, updateUrl, onChangeLocation, setRecentlySaved],
   );
 
-  useOnMount(() => {
+  useMount(() => {
     initializeQB(location, params);
-  }, []);
+  });
 
-  useOnMount(() => {
+  useEffect(() => {
     window.addEventListener("resize", forceUpdateDebounced);
     return () => window.removeEventListener("resize", forceUpdateDebounced);
-  }, []);
+  });
 
-  useOnUnmount(() => {
+  const shouldShowUnsavedChangesWarning = useSelector(
+    getShouldShowUnsavedChangesWarning,
+  );
+  useBeforeUnload(shouldShowUnsavedChangesWarning);
+
+  useUnmount(() => {
     cancelQuery();
     closeModal();
+    closeQB();
     clearTimeout(timeout.current);
   });
 
@@ -372,11 +365,11 @@ function QueryBuilder(props) {
   }, []);
 
   useLoadingTimer(isRunning, {
-    timer: 15000,
+    timer: VISUALIZATION_SLOW_TIMEOUT,
     onTimeout,
   });
 
-  const [requestPermission, showNotification] = useWebNotification();
+  const { requestPermission, showNotification } = useWebNotification();
 
   useEffect(() => {
     if (isLoadingComplete) {

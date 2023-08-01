@@ -9,7 +9,7 @@ import {
 
 import { hasPremiumFeature } from "metabase-enterprise/settings";
 import {
-  getHasCustomColors,
+  getIsWhiteLabeling,
   getLoadingMessage,
 } from "metabase-enterprise/settings/selectors";
 import MetabaseSettings from "metabase/lib/settings";
@@ -79,7 +79,7 @@ if (hasPremiumFeature("whitelabel")) {
         },
         {
           key: "show-metabot",
-          display_name: t`Metabot`,
+          display_name: t`Metabot greeting`,
           description: null,
           type: "boolean",
           widget: MetabotToggleWidget,
@@ -107,8 +107,8 @@ if (hasPremiumFeature("whitelabel")) {
 
   PLUGIN_LOGO_ICON_COMPONENTS.push(LogoIcon);
   PLUGIN_SELECTORS.canWhitelabel = () => true;
-}
 
-// these selectors control whitelabeling UI
-PLUGIN_SELECTORS.getHasCustomColors = getHasCustomColors;
-PLUGIN_SELECTORS.getLoadingMessage = getLoadingMessage;
+  // these selectors control whitelabeling UI
+  PLUGIN_SELECTORS.getLoadingMessage = getLoadingMessage;
+  PLUGIN_SELECTORS.getIsWhiteLabeling = getIsWhiteLabeling;
+}

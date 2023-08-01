@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { Component } from "react";
+import { Component } from "react";
 import { Link } from "react-router";
 
 import _ from "underscore";
@@ -15,8 +15,8 @@ import {
 } from "metabase/lib/groups";
 import { KEYCODE_ENTER } from "metabase/lib/keyboard";
 
-import Icon from "metabase/components/Icon";
-import InputBlurChange from "metabase/components/InputBlurChange";
+import { Icon } from "metabase/core/components/Icon";
+import Input from "metabase/core/components/Input";
 import ModalContent from "metabase/components/ModalContent";
 import Alert from "metabase/components/Alert";
 import ModalWithTrigger from "metabase/components/ModalWithTrigger";
@@ -113,8 +113,8 @@ function EditingGroupRow({
   return (
     <tr className="bordered border-brand rounded">
       <td>
-        <InputBlurChange
-          className="AdminInput h3"
+        <Input
+          className="h3"
           type="text"
           autoFocus={true}
           value={group.name}

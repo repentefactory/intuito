@@ -1,7 +1,5 @@
-import React from "react";
-
 import cx from "classnames";
-import InputBlurChange from "metabase/components/InputBlurChange";
+import { SettingInputBlurChange } from "./SettingInput.styled";
 
 const getValue = (value: string, type: string) => {
   if (type === "number") {
@@ -36,18 +34,19 @@ const SettingInput = ({
   id,
   type = "text",
 }: SettingInputProps) => {
-  const changeHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const changeHandler = (e: { target: HTMLInputElement }) => {
     const value = getValue(e.target.value, type);
     onChange(value);
   };
 
   return (
-    <InputBlurChange
-      className={cx("Form-input", {
+    <SettingInputBlurChange
+      className={cx({
         SettingsInput: type !== "password",
         SettingsPassword: type === "password",
-        "border-error bg-error-input": errorMessage,
       })}
+      size="large"
+      error={!!errorMessage}
       id={id}
       type={type}
       value={setting.value || ""}
@@ -59,4 +58,5 @@ const SettingInput = ({
   );
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default SettingInput;

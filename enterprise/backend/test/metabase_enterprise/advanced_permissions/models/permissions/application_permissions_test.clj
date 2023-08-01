@@ -1,18 +1,19 @@
 (ns metabase-enterprise.advanced-permissions.models.permissions.application-permissions-test
-  (:require [clojure.test :refer :all]
-            [metabase-enterprise.advanced-permissions.models.permissions.application-permissions :as g-perms]
-            [metabase.models :refer [ApplicationPermissionsRevision PermissionsGroup]]
-            [metabase.models.permissions :as perms]
-            [metabase.models.permissions-group :as perms-group]
-            [metabase.test :as mt]
-            [toucan.db :as db]))
+  (:require
+   [clojure.test :refer :all]
+   [metabase-enterprise.advanced-permissions.models.permissions.application-permissions :as g-perms]
+   [metabase.models :refer [ApplicationPermissionsRevision PermissionsGroup]]
+   [metabase.models.permissions :as perms]
+   [metabase.models.permissions-group :as perms-group]
+   [metabase.test :as mt]
+   [toucan2.core :as t2]))
 
 ;; -------------------------------------------------- Fetch Graph ---------------------------------------------------
 
 (deftest application-permissions-graph-test
   (mt/with-temp* [PermissionsGroup [{group-id :id}]]
     ;; clear the graph revisions
-    (db/delete! ApplicationPermissionsRevision)
+    (t2/delete! ApplicationPermissionsRevision)
     (testing "group should be in graph if one of application permission is enabled"
       (let [graph (g-perms/graph)]
         (is (= 0 (:revision graph)))

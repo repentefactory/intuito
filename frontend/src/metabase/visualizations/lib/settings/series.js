@@ -1,10 +1,10 @@
-/* eslint-disable react/prop-types */
 import { t } from "ttag";
 import _ from "underscore";
 import { getIn } from "icepick";
 
 import ChartNestedSettingSeries from "metabase/visualizations/components/settings/ChartNestedSettingSeries";
 import { getColorsForValues } from "metabase/lib/colors/charts";
+import { getNameForCard } from "../series";
 import { nestedSettings } from "./nested";
 
 export function keyForSingleSeries(single) {
@@ -169,6 +169,14 @@ export function seriesSetting({
       component: ChartNestedSettingSeries,
       readDependencies: [COLOR_SETTING_ID, ...readDependencies],
       noPadding: true,
+      getExtraProps: series => ({
+        seriesCardNames: series.reduce((memo, singleSeries) => {
+          memo[keyForSingleSeries(singleSeries)] = getNameForCard(
+            singleSeries.card,
+          );
+          return memo;
+        }, {}),
+      }),
       ...def,
     }),
     // colors must be computed as a whole rather than individually

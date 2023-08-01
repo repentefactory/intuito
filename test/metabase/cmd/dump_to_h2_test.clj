@@ -1,24 +1,27 @@
 (ns metabase.cmd.dump-to-h2-test
-  (:require [clojure.java.io :as io]
-            [clojure.java.jdbc :as jdbc]
-            [clojure.test :refer :all]
-            [metabase.cmd :as cmd]
-            [metabase.cmd.copy :as copy]
-            [metabase.cmd.copy.h2 :as copy.h2]
-            [metabase.cmd.dump-to-h2 :as dump-to-h2]
-            [metabase.cmd.load-from-h2 :as load-from-h2]
-            [metabase.cmd.test-util :as cmd.test-util]
-            [metabase.db.connection :as mdb.connection]
-            [metabase.db.spec :as mdb.spec]
-            [metabase.db.test-util :as mdb.test-util]
-            [metabase.driver :as driver]
-            [metabase.models :refer [Database Setting]]
-            [metabase.models.setting :as setting]
-            [metabase.test :as mt]
-            [metabase.test.data.interface :as tx]
-            [metabase.util.encryption-test :as encryption-test]
-            [metabase.util.i18n.impl :as i18n.impl]
-            [toucan.db :as db]))
+  (:require
+   [clojure.java.io :as io]
+   [clojure.java.jdbc :as jdbc]
+   [clojure.test :refer :all]
+   [metabase.cmd :as cmd]
+   [metabase.cmd.copy :as copy]
+   [metabase.cmd.copy.h2 :as copy.h2]
+   [metabase.cmd.dump-to-h2 :as dump-to-h2]
+   [metabase.cmd.load-from-h2 :as load-from-h2]
+   [metabase.cmd.test-util :as cmd.test-util]
+   [metabase.db.connection :as mdb.connection]
+   [metabase.db.spec :as mdb.spec]
+   [metabase.db.test-util :as mdb.test-util]
+   [metabase.driver :as driver]
+   [metabase.models :refer [Database Setting]]
+   [metabase.models.setting :as setting]
+   [metabase.test :as mt]
+   [metabase.test.data.interface :as tx]
+   [metabase.util.encryption-test :as encryption-test]
+   [metabase.util.i18n.impl :as i18n.impl]
+   [toucan2.core :as t2]))
+
+(set! *warn-on-reflection* true)
 
 (deftest dump-deletes-target-db-files-tests
   ;; test fails when the application db is anything but H2 presently
@@ -68,25 +71,26 @@
                           h2-file-enc         (format "out-%s.db" (mt/random-name))
                           h2-file-default-enc (format "out-%s.db" (mt/random-name))]
         (mt/test-drivers #{:h2 :postgres :mysql}
-          (with-redefs [i18n.impl/site-locale-from-setting-fn (atom (constantly false))]
+          (with-redefs [i18n.impl/site-locale-from-setting (constantly nil)]
             (binding [setting/*disable-cache*         true
                       mdb.connection/*application-db* (mdb.connection/application-db
                                                        driver/*driver*
                                                        (persistent-data-source driver/*driver* db-name))]
               (when-not (= driver/*driver* :h2)
                 (tx/create-db! driver/*driver* {:database-name db-name}))
-              (load-from-h2/load-from-h2! h2-fixture-db-file)
-              (encryption-test/with-secret-key "89ulvIGoiYw6mNELuOoEZphQafnF/zYe+3vT+v70D1A="
-                (db/insert! Setting {:key "my-site-admin", :value "baz"})
-                (db/update! Database 1 {:details "{\"db\":\"/tmp/test.db\"}"})
-                (dump-to-h2/dump-to-h2! h2-file-plaintext {:dump-plaintext? true})
-                (dump-to-h2/dump-to-h2! h2-file-enc {:dump-plaintext? false})
-                (dump-to-h2/dump-to-h2! h2-file-default-enc))
+              (binding [copy/*allow-loading-h2-databases* true]
+                (load-from-h2/load-from-h2! h2-fixture-db-file)
+                (encryption-test/with-secret-key "89ulvIGoiYw6mNELuOoEZphQafnF/zYe+3vT+v70D1A="
+                  (t2/insert! Setting {:key "my-site-admin", :value "baz"})
+                  (t2/update! Database 1 {:details {:db "/tmp/test.db"}})
+                  (dump-to-h2/dump-to-h2! h2-file-plaintext {:dump-plaintext? true})
+                  (dump-to-h2/dump-to-h2! h2-file-enc {:dump-plaintext? false})
+                  (dump-to-h2/dump-to-h2! h2-file-default-enc)))
 
               (testing "decodes settings and dashboard.details"
                 (with-open [target-conn (.getConnection (copy.h2/h2-data-source h2-file-plaintext))]
                   (is (= "baz" (:value (first (jdbc/query {:connection target-conn}
-                                                          "select value from SETTING where key='my-site-admin';")))))
+                                                          "select \"VALUE\" from SETTING where \"KEY\"='my-site-admin';")))))
                   (is (= "{\"db\":\"/tmp/test.db\"}"
                          (:details (first (jdbc/query {:connection target-conn}
                                                       "select details from metabase_database where id=1;")))))))
@@ -95,7 +99,7 @@
                 (with-open [target-conn (.getConnection (copy.h2/h2-data-source h2-file-enc))]
                   (is (not (= "baz"
                               (:value (first (jdbc/query {:connection target-conn}
-                                                         "select value from SETTING where key='my-site-admin';"))))))
+                                                         "select \"VALUE\" from SETTING where \"KEY\"='my-site-admin';"))))))
                   (is (not (= "{\"db\":\"/tmp/test.db\"}"
                               (:details (first (jdbc/query {:connection target-conn}
                                                            "select details from metabase_database where id=1;"))))))))
@@ -104,7 +108,7 @@
                 (with-open [target-conn (.getConnection (copy.h2/h2-data-source h2-file-default-enc))]
                   (is (not (= "baz"
                               (:value (first (jdbc/query {:connection target-conn}
-                                                         "select value from SETTING where key='my-site-admin';"))))))
+                                                         "select \"VALUE\" from SETTING where \"KEY\"='my-site-admin';"))))))
                   (is (not (= "{\"db\":\"/tmp/test.db\"}"
                               (:details (first (jdbc/query {:connection target-conn}
                                                            "select details from metabase_database where id=1;")))))))))))))))

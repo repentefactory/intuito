@@ -9,6 +9,7 @@ import {
   getTargetForQueryParams,
 } from "metabase-lib/parameters/utils/click-behavior";
 import Question from "metabase-lib/Question";
+import * as ML_Urls from "metabase-lib/urls";
 
 export function getDashboardDrillType(clicked) {
   const clickBehavior = getClickBehavior(clicked);
@@ -35,22 +36,6 @@ export function getDashboardDrillType(clicked) {
       } else {
         return "dashboard-url";
       }
-    } else if (linkType === "page") {
-      const { location, routerParams } = extraData;
-
-      const isInDataApp =
-        Urls.isDataAppPagePath(location.pathname) ||
-        Urls.isDataAppPath(location.pathname);
-      if (!isInDataApp) {
-        return null;
-      }
-
-      const dataAppId = Urls.extractEntityId(routerParams.slug);
-      if (!dataAppId) {
-        return null;
-      }
-
-      return "page-url";
     } else if (linkType === "question" && extraData && extraData.questions) {
       return "question-url";
     }
@@ -97,26 +82,6 @@ export function getDashboardDrillUrl(clicked) {
   return `${path}?${querystring.stringify(queryParams)}`;
 }
 
-export function getDashboardDrillPageUrl(clicked) {
-  const clickBehavior = getClickBehavior(clicked);
-  const { data, extraData, parameterMapping, targetId } = getClickBehaviorData(
-    clicked,
-    clickBehavior,
-  );
-
-  const { routerParams } = extraData;
-  const dataAppId = Urls.extractEntityId(routerParams.slug);
-  const path = Urls.dataAppPage({ id: dataAppId }, { id: targetId });
-
-  const queryParams = getParameterValuesBySlug(parameterMapping, {
-    data,
-    extraData,
-    clickBehavior,
-  });
-
-  return `${path}?${querystring.stringify(queryParams)}`;
-}
-
 export function getDashboardDrillQuestionUrl(question, clicked) {
   const clickBehavior = getClickBehavior(clicked);
   const { data, extraData, parameterMapping, targetId } = getClickBehaviorData(
@@ -146,8 +111,8 @@ export function getDashboardDrillQuestionUrl(question, clicked) {
   });
 
   return targetQuestion.isStructured()
-    ? targetQuestion.getUrlWithParameters(parameters, queryParams)
-    : `${targetQuestion.getUrl()}?${querystring.stringify(queryParams)}`;
+    ? ML_Urls.getUrlWithParameters(targetQuestion, parameters, queryParams)
+    : `${ML_Urls.getUrl(targetQuestion)}?${querystring.stringify(queryParams)}`;
 }
 
 function getClickBehavior(clicked) {

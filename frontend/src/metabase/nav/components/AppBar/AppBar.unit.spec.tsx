@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { createMockUser } from "metabase-types/api/mocks";
 import AppBar, { AppBarProps } from "./AppBar";
@@ -31,10 +30,11 @@ describe("AppBar", () => {
 
     it("should render the desktop app bar", () => {
       const props = getProps({
-        isNavBarVisible: true,
+        isNavBarEnabled: true,
         isCollectionPathVisible: true,
         isSearchVisible: true,
         isNewButtonVisible: true,
+        isLogoVisible: true,
       });
 
       render(<AppBar {...props} />);
@@ -76,10 +76,11 @@ describe("AppBar", () => {
 
     it("should render the mobile app bar", () => {
       const props = getProps({
-        isNavBarVisible: true,
+        isNavBarEnabled: true,
         isCollectionPathVisible: true,
         isSearchVisible: true,
         isNewButtonVisible: true,
+        isLogoVisible: true,
       });
 
       render(<AppBar {...props} />);

@@ -53,21 +53,20 @@ export function scheduleIsValid(channel: Channel) {
         return true;
       }
     // these cases intentionally fall though
-    // eslint-disable-next-line no-fallthrough
+    /* eslint-disable no-fallthrough */
     case "weekly":
       if (channel.schedule_day == null) {
         return false;
       }
-    // eslint-disable-next-line no-fallthrough
     case "daily":
       if (channel.schedule_hour == null) {
         return false;
       }
-    // eslint-disable-next-line no-fallthrough
     case "hourly":
       break;
     default:
       return false;
+    /* eslint-enable no-fallthrough */
   }
 
   return true;
@@ -102,7 +101,10 @@ export function recipientIsValid(recipient: NotificationRecipient) {
 
   const recipientDomain = MetabaseUtils.getEmailDomain(recipient.email);
   const allowedDomains = MetabaseSettings.subscriptionAllowedDomains();
-  return _.isEmpty(allowedDomains) || allowedDomains.includes(recipientDomain);
+  return (
+    _.isEmpty(allowedDomains) ||
+    (recipientDomain && allowedDomains.includes(recipientDomain))
+  );
 }
 
 export function pulseIsValid(pulse: Pulse, channelSpecs: ChannelSpecs) {

@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React from "react";
+import { Fragment } from "react";
 
 import { t } from "ttag";
 import _ from "underscore";
@@ -9,7 +9,7 @@ import { getAccentColors } from "metabase/lib/colors/groups";
 
 import ColorSelector from "metabase/core/components/ColorSelector";
 import Button from "metabase/core/components/Button";
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 import NumericInput from "metabase/components/NumericInput";
 
 const ChartSettingGaugeSegments = ({ value: segments, onChange }) => {
@@ -31,7 +31,7 @@ const ChartSettingGaugeSegments = ({ value: segments, onChange }) => {
         </thead>
         <tbody>
           {segments.map((segment, index) => (
-            <React.Fragment key={segment.index}>
+            <Fragment key={segment.index}>
               <tr>
                 <td>
                   <ColorSelector
@@ -44,7 +44,7 @@ const ChartSettingGaugeSegments = ({ value: segments, onChange }) => {
                 <td>
                   <NumericInput
                     type="number"
-                    className="input full"
+                    className="full"
                     value={segment.min}
                     onChange={value => onChangeProperty(index, "min", value)}
                     placeholder={t`Min`}
@@ -53,7 +53,7 @@ const ChartSettingGaugeSegments = ({ value: segments, onChange }) => {
                 <td>
                   <NumericInput
                     type="number"
-                    className="input full"
+                    className="full"
                     value={segment.max}
                     onChange={value => onChangeProperty(index, "max", value)}
                     placeholder={t`Max`}
@@ -84,7 +84,7 @@ const ChartSettingGaugeSegments = ({ value: segments, onChange }) => {
                   />
                 </td>
               </tr>
-            </React.Fragment>
+            </Fragment>
           ))}
         </tbody>
       </table>

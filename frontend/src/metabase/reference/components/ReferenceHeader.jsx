@@ -1,12 +1,12 @@
-import React from "react";
+import { memo } from "react";
 import PropTypes from "prop-types";
 import { Link } from "react-router";
 import cx from "classnames";
 
 import { t } from "ttag";
-import L from "metabase/components/List.css";
+import L from "metabase/components/List/List.css";
 
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 import Ellipsified from "metabase/core/components/Ellipsified";
 import S from "./ReferenceHeader.css";
 
@@ -60,4 +60,4 @@ ReferenceHeader.propTypes = {
   headerLink: PropTypes.string,
 };
 
-export default React.memo(ReferenceHeader);
+export default memo(ReferenceHeader);

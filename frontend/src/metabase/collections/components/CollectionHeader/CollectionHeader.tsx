@@ -1,16 +1,13 @@
-import React from "react";
 import { withRouter } from "react-router";
 import type { Location } from "history";
 
-import { isDataAppCollection } from "metabase/entities/data-apps";
+import { Collection, CollectionId } from "metabase-types/api";
 
-import { Collection } from "metabase-types/api";
-
+import { CollectionMenu } from "../CollectionMenu";
 import CollectionCaption from "./CollectionCaption";
 import CollectionBookmark from "./CollectionBookmark";
-import CollectionMenu from "./CollectionMenu";
 import CollectionTimeline from "./CollectionTimeline";
-import LaunchDataAppButton from "./LaunchDataAppButton";
+import { CollectionUpload } from "./CollectionUpload";
 
 import { HeaderActions, HeaderRoot } from "./CollectionHeader.styled";
 
@@ -23,6 +20,9 @@ export interface CollectionHeaderProps {
   onUpdateCollection: (entity: Collection, values: Partial<Collection>) => void;
   onCreateBookmark: (collection: Collection) => void;
   onDeleteBookmark: (collection: Collection) => void;
+  onUpload: (file: File, collectionId: CollectionId) => void;
+  canUpload: boolean;
+  uploadsEnabled: boolean;
 }
 
 const CollectionHeader = ({
@@ -34,8 +34,12 @@ const CollectionHeader = ({
   onUpdateCollection,
   onCreateBookmark,
   onDeleteBookmark,
+  onUpload,
+  canUpload,
+  uploadsEnabled,
 }: CollectionHeaderProps): JSX.Element => {
-  const isDataApp = isDataAppCollection(collection);
+  const showUploadButton =
+    collection.can_write && (canUpload || !uploadsEnabled);
 
   return (
     <HeaderRoot>
@@ -44,7 +48,14 @@ const CollectionHeader = ({
         onUpdateCollection={onUpdateCollection}
       />
       <HeaderActions data-testid="collection-menu">
-        {isDataApp && <LaunchDataAppButton collection={collection} />}
+        {showUploadButton && (
+          <CollectionUpload
+            collection={collection}
+            uploadsEnabled={uploadsEnabled}
+            isAdmin={isAdmin}
+            onUpload={onUpload}
+          />
+        )}
         <CollectionTimeline collection={collection} />
         <CollectionBookmark
           collection={collection}
@@ -55,7 +66,6 @@ const CollectionHeader = ({
         <CollectionMenu
           collection={collection}
           isAdmin={isAdmin}
-          isDataApp={isDataApp}
           isPersonalCollectionChild={isPersonalCollectionChild}
           onUpdateCollection={onUpdateCollection}
         />
@@ -64,4 +74,5 @@ const CollectionHeader = ({
   );
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default withRouter(CollectionHeader);

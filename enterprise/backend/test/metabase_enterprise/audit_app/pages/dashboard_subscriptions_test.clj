@@ -1,13 +1,15 @@
 (ns metabase-enterprise.audit-app.pages.dashboard-subscriptions-test
-  (:require [clojure.string :as str]
-            [clojure.test :refer :all]
-            [metabase-enterprise.audit-app.pages.dashboard-subscriptions :as audit.dashboard-subscriptions]
-            [metabase.models :refer [Collection Dashboard Pulse PulseChannel PulseChannelRecipient]]
-            [metabase.public-settings.premium-features-test :as premium-features-test]
-            [metabase.query-processor :as qp]
-            [metabase.test :as mt]
-            [metabase.util :as u]
-            [toucan.db :as db]))
+  (:require
+   [clojure.string :as str]
+   [clojure.test :refer :all]
+   [metabase-enterprise.audit-app.pages.dashboard-subscriptions :as audit.dashboard-subscriptions]
+   [metabase.models :refer [Collection Dashboard Pulse PulseChannel PulseChannelRecipient]]
+   [metabase.public-settings.premium-features-test :as premium-features-test]
+   [metabase.query-processor :as qp]
+   [metabase.test :as mt]
+   [metabase.util :as u]
+   [toucan2.core :as t2]
+   [toucan2.tools.with-temp :as t2.with-temp]))
 
 (defn- dashboard-subscriptions [dashboard-name]
   (mt/with-test-user :crowberto
@@ -21,7 +23,8 @@
   (is (= []
          (mt/rows (dashboard-subscriptions (mt/random-name)))))
   (let [dashboard-name (mt/random-name)]
-    (mt/with-temp Collection [{collection-id :id, collection-name :name}]
+
+    (t2.with-temp/with-temp [Collection {collection-id :id, collection-name :name}]
       ;; test with both the Root Collection and a non-Root Collection
       (doseq [{:keys [collection-id collection-name]} [{:collection-id   collection-id
                                                         :collection-name collection-name}
@@ -68,7 +71,7 @@
                                "Every hour"
                                (mt/user->id :rasta)
                                "Rasta Toucan"
-                               (db/select-one-field :created_at PulseChannel :id channel-2-id)
+                               (t2/select-one-fn :created_at PulseChannel :id channel-2-id)
                                0]
                               [dashboard-id
                                dashboard-name
@@ -80,7 +83,7 @@
                                "At 8:00 AM, on the first Tuesday of the month"
                                (mt/user->id :rasta)
                                "Rasta Toucan"
-                               (db/select-one-field :created_at PulseChannel :id channel-id)
+                               (t2/select-one-fn :created_at PulseChannel :id channel-id)
                                0]]}
                    (mt/rows+column-names
                     (dashboard-subscriptions (str/join (rest (butlast dashboard-name)))))))))))))

@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import * as React from "react";
 import _ from "underscore";
 import { t } from "ttag";
 import { useDebouncedValue } from "metabase/hooks/use-debounced-value";
@@ -6,12 +7,13 @@ import { SEARCH_DEBOUNCE_DURATION } from "metabase/lib/constants";
 import Checkbox from "metabase/core/components/CheckBox";
 import EmptyState from "metabase/components/EmptyState";
 
+import Input, { InputProps } from "metabase/core/components/Input";
 import {
   OptionContainer,
   LabelWrapper,
   OptionsList,
   EmptyStateContainer,
-  FilterInput,
+  FilterInputContainer,
 } from "./ListField.styled";
 import { ListFieldProps, Option } from "./types";
 import { isValidOptionItem } from "./utils";
@@ -24,7 +26,7 @@ function createOptionsFromValuesWithoutOptions(
   return values.filter(value => !optionsMap[value]).map(value => [value]);
 }
 
-const ListField = ({
+export const ListField = ({
   onChange,
   value,
   options,
@@ -104,20 +106,22 @@ const ListField = ({
     }
   };
 
+  const handleFilterChange: InputProps["onChange"] = e =>
+    setFilter(e.target.value);
+
   return (
     <>
-      <FilterInput
-        isDashboardFilter={isDashboardFilter}
-        padding={isDashboardFilter ? "md" : "sm"}
-        borderRadius={isDashboardFilter ? "md" : "sm"}
-        colorScheme={isDashboardFilter ? "transparent" : "admin"}
-        placeholder={placeholder}
-        value={filter}
-        onChange={setFilter}
-        onKeyDown={handleKeyDown}
-        hasClearButton
-        autoFocus
-      />
+      <FilterInputContainer isDashboardFilter={isDashboardFilter}>
+        <Input
+          fullWidth
+          autoFocus
+          placeholder={placeholder}
+          value={filter}
+          onChange={handleFilterChange}
+          onKeyDown={handleKeyDown}
+          onResetClick={() => setFilter("")}
+        />
+      </FilterInputContainer>
 
       {shouldShowEmptyState && (
         <EmptyStateContainer>
@@ -126,8 +130,8 @@ const ListField = ({
       )}
 
       <OptionsList isDashboardFilter={isDashboardFilter}>
-        {filteredOptions.map(option => (
-          <OptionContainer key={option[0]}>
+        {filteredOptions.map((option, index) => (
+          <OptionContainer key={index}>
             <Checkbox
               data-testid={`${option[0]}-filter-value`}
               checkedColor={
@@ -143,5 +147,3 @@ const ListField = ({
     </>
   );
 };
-
-export default ListField;

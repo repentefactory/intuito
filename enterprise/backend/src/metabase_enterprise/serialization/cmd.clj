@@ -1,32 +1,37 @@
 (ns metabase-enterprise.serialization.cmd
   (:refer-clojure :exclude [load])
-  (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [metabase-enterprise.serialization.dump :as dump]
-            [metabase-enterprise.serialization.load :as load]
-            [metabase-enterprise.serialization.v2.extract :as v2.extract]
-            [metabase-enterprise.serialization.v2.ingest.yaml :as v2.ingest]
-            [metabase-enterprise.serialization.v2.load :as v2.load]
-            [metabase-enterprise.serialization.v2.seed-entity-ids :as v2.seed-entity-ids]
-            [metabase-enterprise.serialization.v2.storage.yaml :as v2.storage]
-            [metabase.db :as mdb]
-            [metabase.models.card :refer [Card]]
-            [metabase.models.collection :refer [Collection]]
-            [metabase.models.dashboard :refer [Dashboard]]
-            [metabase.models.database :refer [Database]]
-            [metabase.models.field :as field :refer [Field]]
-            [metabase.models.metric :refer [Metric]]
-            [metabase.models.native-query-snippet :refer [NativeQuerySnippet]]
-            [metabase.models.pulse :refer [Pulse]]
-            [metabase.models.segment :refer [Segment]]
-            [metabase.models.table :refer [Table]]
-            [metabase.models.user :refer [User]]
-            [metabase.plugins :as plugins]
-            [metabase.util :as u]
-            [metabase.util.i18n :refer [deferred-trs trs]]
-            [metabase.util.schema :as su]
-            [schema.core :as s]
-            [toucan.db :as db]))
+  (:require
+   [metabase-enterprise.serialization.dump :as dump]
+   [metabase-enterprise.serialization.load :as load]
+   [metabase-enterprise.serialization.v2.extract :as v2.extract]
+   [metabase-enterprise.serialization.v2.ingest :as v2.ingest]
+   [metabase-enterprise.serialization.v2.load :as v2.load]
+   [metabase-enterprise.serialization.v2.seed-entity-ids :as v2.seed-entity-ids]
+   [metabase-enterprise.serialization.v2.storage :as v2.storage]
+   [metabase.db :as mdb]
+   [metabase.models.card :refer [Card]]
+   [metabase.models.collection :refer [Collection]]
+   [metabase.models.dashboard :refer [Dashboard]]
+   [metabase.models.database :refer [Database]]
+   [metabase.models.field :as field :refer [Field]]
+   [metabase.models.metric :refer [Metric]]
+   [metabase.models.native-query-snippet :refer [NativeQuerySnippet]]
+   [metabase.models.pulse :refer [Pulse]]
+   [metabase.models.segment :refer [Segment]]
+   [metabase.models.serialization :as serdes]
+   [metabase.models.table :refer [Table]]
+   [metabase.models.user :refer [User]]
+   [metabase.plugins :as plugins]
+   [metabase.public-settings.premium-features :as premium-features]
+   [metabase.util :as u]
+   [metabase.util.i18n :refer [deferred-trs trs]]
+   [metabase.util.log :as log]
+   [metabase.util.malli :as mu]
+   [metabase.util.schema :as su]
+   [schema.core :as s]
+   [toucan2.core :as t2]))
+
+(set! *warn-on-reflection* true)
 
 (def ^:private Mode
   (su/with-api-error-message (s/enum :skip :update)
@@ -42,11 +47,15 @@
      (s/optional-key :mode)     Mode}
     (deferred-trs "invalid context seed value")))
 
+(defn- check-premium-token! []
+  (premium-features/assert-has-feature :serialization (trs "Serialization")))
+
 (s/defn v1-load
   "Load serialized metabase instance as created by [[dump]] command from directory `path`."
   [path context :- Context]
   (plugins/load-plugins!)
   (mdb/setup-db!)
+  (check-premium-token!)
   (when-not (load/compatible? path)
     (log/warn (trs "Dump was produced using a different version of Metabase. Things may break!")))
   (let [context (merge {:mode     :skip
@@ -68,22 +77,33 @@
         (log/error e (trs "ERROR LOAD from {0}: {1}" path (.getMessage e)))
         (throw e)))))
 
-(defn- v2-load
-  [path _args]
+(mu/defn v2-load-internal
+  "SerDes v2 load entry point for internal users.
+
+  `opts` are passed to [[v2.load/load-metabase]]."
+  [path
+   opts :- [:map [:abort-on-error {:optional true} [:maybe :boolean]]]
+   ;; Deliberately separate from the opts so it can't be set from the CLI.
+   & {:keys [token-check?]
+      :or   {token-check? true}}]
   (plugins/load-plugins!)
   (mdb/setup-db!)
+  (when token-check?
+    (check-premium-token!))
   ; TODO This should be restored, but there's no manifest or other meta file written by v2 dumps.
   ;(when-not (load/compatible? path)
   ;  (log/warn (trs "Dump was produced using a different version of Metabase. Things may break!")))
   (log/info (trs "Loading serialized Metabase files from {0}" path))
-  (v2.load/load-metabase (v2.ingest/ingest-yaml path)))
+  (serdes/with-cache
+    (v2.load/load-metabase (v2.ingest/ingest-yaml path) opts)))
 
-(defn load
-  "Load serialized metabase instance as created by `dump` command from directory `path`."
-  [path args]
-  (if (:v2 args)
-    (v2-load path args)
-    (v1-load path args)))
+(mu/defn v2-load
+  "SerDes v2 load entry point.
+
+   opts are passed to load-metabase"
+  [path
+   opts :- [:map [:abort-on-error {:optional true} [:maybe :boolean]]]]
+  (v2-load-internal path opts :token-check? true))
 
 (defn- select-entities-in-collections
   ([model collections]
@@ -92,7 +112,7 @@
    (let [state-filter (case state
                         :all nil
                         :active [:= :archived false])]
-     (db/select model {:where [:and
+     (t2/select model {:where [:and
                                [:or [:= :collection_id nil]
                                 (if (not-empty collections)
                                   [:in :collection_id (map u/the-id collections)]
@@ -105,11 +125,11 @@
   ([tables state]
    (case state
      :all
-     (mapcat #(db/select Segment :table_id (u/the-id %)) tables)
+     (mapcat #(t2/select Segment :table_id (u/the-id %)) tables)
      :active
      (filter
       #(not (:archived %))
-      (mapcat #(db/select Segment :table_id (u/the-id %)) tables)))))
+      (mapcat #(t2/select Segment :table_id (u/the-id %)) tables)))))
 
 (defn- select-collections
   "Selects the collections for a given user-id, or all collections without a personal ID if the passed user-id is nil.
@@ -121,14 +141,14 @@
    (let [state-filter     (case state
                             :all nil
                             :active [:= :archived false])
-         base-collections (db/select Collection {:where [:and [:= :location "/"]
+         base-collections (t2/select Collection {:where [:and [:= :location "/"]
                                                               [:or [:= :personal_owner_id nil]
                                                                    [:= :personal_owner_id
                                                                        (some-> users first u/the-id)]]
                                                               state-filter]})]
      (if (empty? base-collections)
        []
-       (-> (db/select Collection
+       (-> (t2/select Collection
                              {:where [:and
                                       (reduce (fn [acc coll]
                                                 (conj acc [:like :location (format "/%d/%%" (:id coll))]))
@@ -137,33 +157,37 @@
            (into base-collections))))))
 
 
-(defn- v1-dump
-  [path state user opts]
+(defn v1-dump
+  "Legacy Metabase app data dump"
+  [path {:keys [state user] :or {state :active} :as opts}]
   (log/info (trs "BEGIN DUMP to {0} via user {1}" path user))
+  (mdb/setup-db!)
+  (check-premium-token!)
+  (t2/select User) ;; TODO -- why??? [editor's note: this comment originally from Cam]
   (let [users       (if user
-                      (let [user (db/select-one User
+                      (let [user (t2/select-one User
                                                 :email        user
                                                 :is_superuser true)]
                         (assert user (trs "{0} is not a valid user" user))
                         [user])
                       [])
         databases   (if (contains? opts :only-db-ids)
-                      (db/select Database :id [:in (:only-db-ids opts)] {:order-by [[:id :asc]]})
-                      (db/select Database))
+                      (t2/select Database :id [:in (:only-db-ids opts)] {:order-by [[:id :asc]]})
+                      (t2/select Database))
         tables      (if (contains? opts :only-db-ids)
-                      (db/select Table :db_id [:in (:only-db-ids opts)] {:order-by [[:id :asc]]})
-                      (db/select Table))
+                      (t2/select Table :db_id [:in (:only-db-ids opts)] {:order-by [[:id :asc]]})
+                      (t2/select Table))
         fields      (if (contains? opts :only-db-ids)
-                      (db/select Field :table_id [:in (map :id tables)] {:order-by [[:id :asc]]})
-                      (db/select Field))
+                      (t2/select Field :table_id [:in (map :id tables)] {:order-by [[:id :asc]]})
+                      (t2/select Field))
         metrics     (if (contains? opts :only-db-ids)
-                      (db/select Metric :table_id [:in (map :id tables)] {:order-by [[:id :asc]]})
-                      (db/select Metric))
+                      (t2/select Metric :table_id [:in (map :id tables)] {:order-by [[:id :asc]]})
+                      (t2/select Metric))
         collections (select-collections users state)]
     (dump/dump path
                databases
                tables
-               (field/with-values fields)
+               (mapcat field/with-values (u/batches-of 32000 fields))
                metrics
                (select-segments-in-tables tables state)
                collections
@@ -176,37 +200,25 @@
   (dump/dump-dimensions path)
   (log/info (trs "END DUMP to {0} via user {1}" path user)))
 
-(defn- v2-extract [opts]
-  ;; if opts has `collections` (a comma-separated string) then convert those to a list of `:targets`
-  (let [opts (cond-> opts
-               (:collections opts)
-               (assoc :targets (for [c (str/split (:collections opts) #",")]
-                                 ["Collection" (Integer/parseInt c)])))]
-    ;; if we have `:targets` (either because we created them from `:collections`, or because they were specified
-    ;; elsewhere) use [[v2.extract/extract-subtrees]]
-    (if (:targets opts)
-      (v2.extract/extract-subtrees opts)
-      (v2.extract/extract-metabase opts))))
-
-(defn- v2-dump [path opts]
-  (-> (v2-extract opts)
-      (v2.storage/store! path)))
-
-(defn dump
-  "Serialized metabase instance into directory `path`."
-  [path {:keys [state user v2]
-         :or {state :active}
-         :as opts}]
-  (log/tracef "Dumping to %s with options %s" (pr-str path) (pr-str opts))
+(defn v2-dump
+  "Exports Metabase app data to directory at path"
+  [path {:keys [user-email collection-ids] :as opts}]
+  (log/info (trs "Exporting Metabase to {0}" path) (u/emoji "🏭 🚛💨"))
   (mdb/setup-db!)
-  (db/select User) ;; TODO -- why???
-  (if v2
-    (v2-dump path opts)
-    (v1-dump path state user opts)))
+  (check-premium-token!)
+  (t2/select User) ;; TODO -- why??? [editor's note: this comment originally from Cam]
+  (serdes/with-cache
+    (-> (cond-> opts
+          (seq collection-ids) (assoc :targets (v2.extract/make-targets-of-type "Collection" collection-ids))
+          user-email        (assoc :user-id (t2/select-one-pk User :email user-email :is_superuser true)))
+        v2.extract/extract
+        (v2.storage/store! path)))
+  (log/info (trs "Export to {0} complete!" path) (u/emoji "🚛💨 📦"))
+  ::v2-dump-complete)
 
 (defn seed-entity-ids
   "Add entity IDs for instances of serializable models that don't already have them.
 
   Returns truthy if all entity IDs were added successfully, or falsey if any errors were encountered."
-  [options]
-  (v2.seed-entity-ids/seed-entity-ids! options))
+  []
+  (v2.seed-entity-ids/seed-entity-ids!))

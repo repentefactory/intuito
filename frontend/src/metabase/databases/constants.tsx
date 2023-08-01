@@ -1,11 +1,21 @@
-import React from "react";
 import { t } from "ttag";
+import { SAVED_QUESTIONS_VIRTUAL_DB_ID } from "metabase-lib/metadata/utils/saved-questions";
 import DatabaseAuthCodeDescription from "./components/DatabaseAuthCodeDescription";
+import DatabaseCacheScheduleField from "./components/DatabaseCacheScheduleField";
 import DatabaseClientIdDescription from "./components/DatabaseClientIdDescription";
 import DatabaseConnectionSectionField from "./components/DatabaseConnectionSectionField";
+import DatabaseScheduleToggleField from "./components/DatabaseScheduleToggleField";
 import DatabaseSshDescription from "./components/DatabaseSshDescription";
 import DatabaseSslKeyDescription from "./components/DatabaseSslKeyDescription";
+import DatabaseSyncScheduleField from "./components/DatabaseSyncScheduleField";
 import { EngineFieldOverride } from "./types";
+
+export const SAVED_QUESTIONS_DATABASE = {
+  id: SAVED_QUESTIONS_VIRTUAL_DB_ID,
+  name: t`Saved Questions`,
+  is_saved_questions: true,
+  features: ["basic-aggregations"],
+};
 
 export const ELEVATED_ENGINES = [
   "mysql",
@@ -92,11 +102,16 @@ export const FIELD_OVERRIDES: Record<string, EngineFieldOverride> = {
   "use-conn-uri": {
     type: DatabaseConnectionSectionField,
   },
+  "let-user-control-scheduling": {
+    type: DatabaseScheduleToggleField,
+  },
   "schedules.metadata_sync": {
     name: "schedules.metadata_sync",
+    type: DatabaseSyncScheduleField,
   },
   "schedules.cache_field_values": {
     name: "schedules.cache_field_values",
+    type: DatabaseCacheScheduleField,
   },
   auto_run_queries: {
     name: "auto_run_queries",

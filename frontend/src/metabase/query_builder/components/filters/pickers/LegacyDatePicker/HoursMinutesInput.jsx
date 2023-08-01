@@ -1,10 +1,8 @@
 /* eslint-disable react/prop-types */
-import React from "react";
-
 import moment from "moment-timezone";
 import { has24HourModeSetting } from "metabase/lib/time";
 import NumericInput from "metabase/components/NumericInput";
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 
 import { AmPmLabel } from "./HoursMinutesInput.styled";
 
@@ -19,7 +17,6 @@ const HoursMinutesInput = ({
   <div className="flex align-center">
     <NumericInput
       data-testid="hours-input"
-      className="input"
       style={{ height: 36 }}
       size={2}
       maxLength={2}

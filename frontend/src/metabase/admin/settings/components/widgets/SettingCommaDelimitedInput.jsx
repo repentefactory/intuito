@@ -1,7 +1,5 @@
 /* eslint-disable react/prop-types */
-import React from "react";
-import cx from "classnames";
-import InputBlurChange from "metabase/components/InputBlurChange";
+import { SettingInputBlurChange } from "./SettingInput.styled";
 
 const maybeSingletonList = value => (value ? [value] : null);
 
@@ -16,11 +14,8 @@ const SettingCommaDelimitedInput = ({
   type = "text",
 }) => {
   return (
-    <InputBlurChange
-      className={cx("Form-input", {
-        SettingsInput: true,
-        "border-error bg-error-input": errorMessage,
-      })}
+    <SettingInputBlurChange
+      error={!!errorMessage}
       id={id}
       type={type}
       // TOOD: change this to support multiple email addresses

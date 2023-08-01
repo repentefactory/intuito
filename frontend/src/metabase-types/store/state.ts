@@ -4,25 +4,31 @@ import { AppState } from "./app";
 import { DashboardState } from "./dashboard";
 import { EmbedState } from "./embed";
 import { EntitiesState } from "./entities";
-import { FormState } from "./forms";
+import { MetabotState } from "./metabot";
 import { QueryBuilderState } from "./qb";
+import { ParametersState } from "./parameters";
 import { SettingsState } from "./settings";
 import { SetupState } from "./setup";
+import { FileUploadState } from "./upload";
+import { AuthState } from "./auth";
 
 export interface State {
   admin: AdminState;
   app: AppState;
+  auth: AuthState;
   currentUser: User | null;
   dashboard: DashboardState;
   embed: EmbedState;
   entities: EntitiesState;
-  form: FormState;
+  metabot: MetabotState;
   qb: QueryBuilderState;
+  parameters: ParametersState;
   settings: SettingsState;
   setup: SetupState;
+  upload: FileUploadState;
 }
 
-export type Dispatch<T = unknown> = (action: T) => void;
+export type Dispatch<T = any> = (action: T) => void;
 
 export type GetState = () => State;
 

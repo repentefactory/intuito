@@ -1,13 +1,23 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-
-import { PRODUCTS, metadata } from "__support__/sample_database_fixture";
+import { createMockEntitiesState } from "__support__/store";
+import { getMetadata } from "metabase/selectors/metadata";
+import {
+  createSampleDatabase,
+  PRODUCTS,
+} from "metabase-types/api/mocks/presets";
+import { createMockState } from "metabase-types/store/mocks";
 import Dimension from "metabase-lib/Dimension";
-
 import { CategoryFingerprint } from "./CategoryFingerprint";
 
+const state = createMockState({
+  entities: createMockEntitiesState({
+    databases: [createSampleDatabase()],
+  }),
+});
+const metadata = getMetadata(state);
+
 const categoryField = Dimension.parseMBQL(
-  ["field", PRODUCTS.CATEGORY.id, null],
+  ["field", PRODUCTS.CATEGORY, null],
   metadata,
 ).field();
 
@@ -57,7 +67,7 @@ describe("CategoryFingerprint", () => {
 
     it("should not show a distinct count when the fingerprint value is unavailable", () => {
       const { container } = setup({ field: categoryField });
-      expect(container.firstChild).toBeNull();
+      expect(container).toBeEmptyDOMElement();
     });
 
     it("should show field values if for whatever reason some are present", () => {
@@ -118,7 +128,7 @@ describe("CategoryFingerprint", () => {
         field: categoryField,
         fieldValues: ["foo"],
       });
-      expect(container.textContent).toEqual("foo");
+      expect(container).toHaveTextContent("foo");
     });
   });
 });

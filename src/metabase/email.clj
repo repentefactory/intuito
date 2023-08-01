@@ -1,13 +1,18 @@
 (ns metabase.email
-  (:require [clojure.tools.logging :as log]
-            [metabase.models.setting :as setting :refer [defsetting]]
-            [metabase.util :as u]
-            [metabase.util.i18n :refer [deferred-tru trs tru]]
-            [metabase.util.schema :as su]
-            [postal.core :as postal]
-            [postal.support :refer [make-props]]
-            [schema.core :as s])
-  (:import javax.mail.Session))
+  (:require
+   [metabase.analytics.prometheus :as prometheus]
+   [metabase.models.setting :as setting :refer [defsetting]]
+   [metabase.util :as u]
+   [metabase.util.i18n :refer [deferred-tru trs tru]]
+   [metabase.util.log :as log]
+   [metabase.util.schema :as su]
+   [postal.core :as postal]
+   [postal.support :refer [make-props]]
+   [schema.core :as s])
+  (:import
+   (javax.mail Session)))
+
+(set! *warn-on-reflection* true)
 
 ;; https://github.com/metabase/metabase/issues/11879#issuecomment-713816386
 (when-not *compile-files*
@@ -17,10 +22,12 @@
 
 (defsetting email-from-address
   (deferred-tru "The email address you want to use for the sender of emails.")
-  :default "notifications@metabase.com")
+  :default    "notifications@metabase.com"
+  :visibility :settings-manager)
 
 (defsetting email-from-name
-  (deferred-tru "The name you want to use for the sender of emails."))
+  (deferred-tru "The name you want to use for the sender of emails.")
+  :visibility :settings-manager)
 
 (def ^:private ReplyToAddresses
   (s/maybe [su/Email]))
@@ -31,29 +38,35 @@
 (defsetting email-reply-to
   (deferred-tru "The email address you want the replies to go to, if different from the from address.")
   :type :json
+  :visibility :settings-manager
   :setter (fn [new-value]
             (->> new-value
                  validate-reply-to-addresses
                  (setting/set-value-of-type! :json :email-reply-to))))
 
 (defsetting email-smtp-host
-  (deferred-tru "The address of the SMTP server that handles your emails."))
+  (deferred-tru "The address of the SMTP server that handles your emails.")
+  :visibility :settings-manager)
 
 (defsetting email-smtp-username
-  (deferred-tru "SMTP username."))
+  (deferred-tru "SMTP username.")
+  :visibility :settings-manager)
 
 (defsetting email-smtp-password
   (deferred-tru "SMTP password.")
+  :visibility :settings-manager
   :sensitive? true)
 
 (defsetting email-smtp-port
   (deferred-tru "The port your SMTP server uses for outgoing emails.")
-  :type :integer)
+  :type       :integer
+  :visibility :settings-manager)
 
 (defsetting email-smtp-security
   (deferred-tru "SMTP secure connection protocol. (tls, ssl, starttls, or none)")
-  :type    :keyword
-  :default :none
+  :type       :keyword
+  :default    :none
+  :visibility :settings-manager
   :setter  (fn [new-value]
              (when (some? new-value)
                (assert (#{:tls :ssl :none :starttls} (keyword new-value))))
@@ -109,23 +122,29 @@
   does not catch and swallow thrown exceptions, it will bubble up."
   {:style/indent 0}
   [{:keys [subject recipients message-type message]} :- EmailMessage]
-  (when-not (email-smtp-host)
-    (throw (ex-info (tru "SMTP host is not set.") {:cause :smtp-host-not-set})))
-  ;; Now send the email
-  (send-email! (smtp-settings)
-               (merge
-                {:from    (if-let [from-name (email-from-name)]
-                            (str from-name " <" (email-from-address) ">")
-                            (email-from-address))
-                 :to      recipients
-                 :subject subject
-                 :body    (case message-type
-                            :attachments message
-                            :text        message
-                            :html        [{:type    "text/html; charset=utf-8"
-                                           :content message}])}
-                (when-let [reply-to (email-reply-to)]
-                  {:reply-to reply-to}))))
+  (try
+    (when-not (email-smtp-host)
+      (throw (ex-info (tru "SMTP host is not set.") {:cause :smtp-host-not-set})))
+    ;; Now send the email
+    (send-email! (smtp-settings)
+                 (merge
+                  {:from    (if-let [from-name (email-from-name)]
+                              (str from-name " <" (email-from-address) ">")
+                              (email-from-address))
+                   :to      recipients
+                   :subject subject
+                   :body    (case message-type
+                              :attachments message
+                              :text        message
+                              :html        [{:type    "text/html; charset=utf-8"
+                                             :content message}])}
+                  (when-let [reply-to (email-reply-to)]
+                    {:reply-to reply-to})))
+    (catch Throwable e
+      (prometheus/inc :metabase-email/message-errors)
+      (throw e))
+    (finally
+      (prometheus/inc :metabase-email/messages))))
 
 (def ^:private SMTPStatus
   "Schema for the response returned by various functions in [[metabase.email]]. Response will be a map with the key
@@ -188,7 +207,7 @@
 
 (def ^:private email-security-order [:tls :starttls :ssl])
 
-(def ^:private retry-delay-ms
+(def ^:private ^Long retry-delay-ms
   "Amount of time to wait between retrying SMTP connections with different security options. This delay exists to keep
   us from getting banned on Outlook.com."
   500)

@@ -5,6 +5,7 @@ export const createMockAdminState = (
 ): AdminState => ({
   app: createMockAdminAppState(),
   permissions: createMockPermissionsState(),
+  settings: { settings: [] },
   ...opts,
 });
 
@@ -22,6 +23,7 @@ export const createMockPermissionsState = (
   return {
     dataPermissions: {},
     originalDataPermissions: {},
+    isHelpReferenceOpen: false,
     ...opts,
   };
 };

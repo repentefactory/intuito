@@ -1,7 +1,7 @@
 ---
 title: Introduction to dashboards
 redirect_from:
-- /docs/latest/users-guide/07-dashboards
+  - /docs/latest/users-guide/07-dashboards
 ---
 
 # Introduction to dashboards
@@ -22,9 +22,25 @@ You can make as many dashboards as you want. Go nuts.
 
 In the top right of the screen, click the **+** icon to open the **Create** menu, and select **New Dashboard**. Give your new dashboard a name and a description, choose which [collections](../exploration-and-organization/collections.md) the dashboard should go in, then click **Create**, and Metabase will take you to your shiny new dashboard.
 
-![Create Dashboard](images/create.png)
+## Dashboard tabs
 
-If you don't want to build a dashboard from scratch, or want to experiment by making changes to an existing dashboard without affecting the original, you can **duplicate** an existing dashboard. From an existing dashboard, click on the **...** menu in the upper right, and select **Duplicate**.
+You can add multiple tabs to a dashboard to keep your cards organized.
+
+![Dashboard tabs](./images/dashboard-tabs.png)
+
+Currently, you can't drag cards from tab to tab. If you want to move a card from one tab to the other, you'll need to remove the card from one tab, and then add the card to the other tab.
+
+## Duplicating a dashboard
+
+If you don't want to build a dashboard from scratch, or want to experiment by making changes to an existing dashboard without affecting the original, you can **duplicate** an existing dashboard.
+
+To duplicate a dashboard, click on the **...** menu in the upper right of the dashboard, and select **Duplicate**.
+
+By default, Metabase will create a new dashboard, with copies of the questions in the original dashboard (including the dashboard's tabs), and save everything to the collection you specify.
+
+If you don't wish to copy the dashboard's underlying questions, check the box that says **Only duplicate the dashboard**. Metabase will copy the dashboard and refer to the original questions.
+
+In both cases, duplication only includes the dashboard, its card layout, filters, and (optionally) the questions. What's not copied: dashboard subscriptions, or any sharing or embedding data settings. For example, if you copy a dashboard that has been made public, that copied dashboard will not be public by default.
 
 ## Adding saved questions to a dashboard
 
@@ -40,21 +56,22 @@ Once you add a question to your dashboard, it’ll look something like this:
 
 ## Adding headings or descriptions with text cards
 
-Another neat thing you can do is add text cards to your dashboards. Text cards allow you to include descriptions, explanations, notes, or even images and GIFs to your dashboards. You can also use text cards to create separations between sections of charts in your dashboards, or include links to other dashboards, questions, or websites.
+Another neat thing you can do is add heading and text cards to your dashboards. Text cards allow you to include descriptions, explanations, notes, or even images and GIFs to your dashboards. You can also use text cards to create separations between sections of charts in your dashboards, or include links to other dashboards, questions, or websites.
 
-To add a new text card, create a new dashboard (or edit an existing one) and click on the text card button, **Aa**, in the top-right:
+To add a new text card, create a new dashboard (or edit an existing one) and click on the text card button, **T**, in the top-right:
 
 ![Text card button](images/text-card-button.png)
 
-Your new, empty text card will appear. It has two modes: writing and previewing. Toggle between the modes by clicking the **eye** to preview the card, or the **document with pencil** icon to edit the card.
+You have two options:
 
-![New text card](images/new-text-card.png)
+- **Heading**: a preformatted heading text card that spans the width of the dashboard.
+- **Text**: a customizable text card that will render Markdown-formatted text.
 
-You can use [Markdown](http://commonmark.org/help/) to format the text in your text card, create inline tables or code snippets, or even embed linked images (easy on the GIFs, friends).
+Each text card has two modes: writing and previewing. When you click to focus on the card, the card will enter editing mode. When you click away from the card, Metabase will render the card to show you what it will look like on the live dashboard.
 
 ![Markdown](images/markdown.png)
 
-Click the **eye** icon to see what your formatted Markdown will look like when you save the card:
+You can use [Markdown](http://commonmark.org/help/) to format the text in your text card, create inline tables or code snippets, or even embed linked images (easy on the GIFs, friends). To preview the rendered card, just click away from the card.
 
 ![Result](images/result.png)
 
@@ -84,6 +101,14 @@ In this case, the phrase `{% raw %}from {{state}}{%endraw%}` would only display 
 
 To see how to wire up a filter to a card, see [dashboard filters](./filters.md).
 
+## Link cards
+
+![Dashboards with link cards](./images/dashboard-with-link-cards.png)
+
+Link cards are specialized cards that let you search and link to other items in your Metabase. You can also use them for external links. Useful for pointing people to other resources relevant to your dashboard.
+
+To add a link card to a dashboard, click the **pencil** icon to enter dashboard editing mode, then click on the **link** icon. Click on the input field in the link card to search your Metabase for an item to link to, or paste an external link.
+
 ## Arranging cards
 
 Each question on a dashboard is in its own card that you can move around or resize as you see fit. Just click the **pencil** icon in the top right of a dashboard to enter the dashboard's editing interface.
@@ -100,7 +125,7 @@ Metabase will automatically update a question's display to make sure your data l
 
 ## Changing a card's visualization settings
 
-You can change a card's visualization settings (to add a goal line, for example,). Changing a card's visualization settings will only affect how the question appears on that dashboard card; these changes won't affect the original question's visualization settings. 
+You can change a card's visualization settings (to add a goal line, for example,). Changing a card's visualization settings will only affect how the question appears on that dashboard card; these changes won't affect the original question's visualization settings.
 
 Click on the **pencil** icon to enter dashboard edit mode, hover over the question you want to edit, and click on the **palette** icon to edit a card's visualization's settings.
 
@@ -112,18 +137,10 @@ If you want to revert a dashboard card to its original visualization settings (i
 
 1. Go to your dashboard and click the **pencil icon** to go into edit mode.
 2. Hover over the card (question) that you want to edit.
-3. Click the **palette icon** to bring up the visualization settings for that card. 
+3. Click the **palette icon** to bring up the visualization settings for that card.
 4. Click **Reset to defaults**.
 5. Click **Done** to save the card's visualization settings.
 6. Click **Save** to save the dashboard.
-
-## Finding dashboards
-
-You can search for any dashboard (or question, model, collection, or pulse) by its title in the big search box at the top of Metabase.
-
-After a while, your team might accumulate a lot of dashboards. To make it easier to find dashboards that your team looks at often, you can pin them to the top of a collection. From the collection screen, click on the **Pin icon** next to the dashboard you want to pin.
-
-![Pinning a dashboard in a collection](images/pinning-dashboard.png)
 
 ## Fullscreen dashboards
 
@@ -145,13 +162,11 @@ Enabling auto refresh will re-run all the queries on the dashboard at the interv
 
 Combining fullscreen mode and auto refresh is a great way to keep your team in sync with your data throughout the day.
 
-## Caching dashboards
+## Caching dashboard results
 
-{% include plans-blockquote.html feature="Caching dashboards" %}
+{% include plans-blockquote.html feature="Caching dashboard results" %}
 
-If your results don't change frequently, you may want to cache your results, that is: store your results in Metabase so that the next time you visit the dashboard, Metabase can retrieve the stored results rather than query the database(s) again. For example, if your data only updates once a day, there's no point in querying the database more than once a day, as they data won't have changed. Returning cached results can be significantly faster, as the database won't have to redo the work to answer your query.
-
-You can set cache duration for a dashboard by clicking on the _..._ > __Edit dashboard details__ > __More options__.
+See [Caching per dashboard](../configuring-metabase/caching.md#caching-per-dashboard).
 
 ## Sharing dashboards with public links
 
@@ -160,6 +175,10 @@ If your Metabase administrator has enabled [public sharing](../questions/sharing
 ![Share icon](./images/share-icon.png)
 
 Public links can be viewed by anyone, even if they don't have access to Metabase. You can also use the public embedding code to embed your question or dashboard in a simple web page or blog post. Check out examples of simple apps with embedded dashboards in our [embedding-reference-apps repository](https://github.com/metabase/embedding-reference-apps). To learn more about [embedding](../embedding/introduction.md), check out our article on [How to use Metabase to deliver analytics to your customers](https://www.metabase.com/blog/external-facing-analytics), as well as an article on how to combine branding, Single Sign-On, full app embedding, and data sandboxing to deliver [multi-tenant, self-service analytics](https://www.metabase.com/blog/embedding).
+
+## Exporting dashboards as PDFs
+
+To export a dashboard as a PDF, wait until the dashboard is finished loading, then click on the three dot menu (**...**) in the upper right and select **Export as PDF**.
 
 ## Configuring a dashboard through its URL
 
@@ -181,13 +200,11 @@ The part that says `refresh=60` sets the dashboard to automatically refresh ever
 
 There is one important limitation with the `fullscreen` option: for security reasons, many browsers require user interaction to initiate fullscreen. In those browsers, using the `fullscreen` option will enable the fullscreen UI in Metabase, but it won't expand the browser content to fill the screen. To ensure the dashboard occupies the entire screen, either activate fullscreen by clicking the button in the UI, or use the `fullscreen` URL option and launch the browser in fullscreen or kiosk mode.
 
-## Archiving a dashboard
+## Dashboard version history
 
-Archiving a dashboard removes the dashboard from searches and collections. Archiving a dashboard does not archive the individual saved questions on it — it just archives the dashboard.
+For [questions](../questions/start.md), dashboards, and [models](../data-modeling/models.md), Metabase keeps a version history for the previous fifteen versions of that item.
 
-To archive a dashboard, click the **pencil** icon to enter edit mode, then click the **...** menu, and select **Archive**.
-
-To view all archived items, click the **menu** icon in the top-right of any collection page. You can **unarchive** a dashboard by clicking the icon of the box with the upward arrow next to that dashboard.
+See [History](../exploration-and-organization/history.md).
 
 ## Tips on creating helpful dashboards
 

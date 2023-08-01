@@ -1,16 +1,19 @@
 (ns metabase.automagic-dashboards.populate
   "Create and save models that make up automagic dashboards."
-  (:require [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [medley.core :as m]
-            [metabase.api.common :as api]
-            [metabase.automagic-dashboards.filters :as filters]
-            [metabase.models.card :as card]
-            [metabase.models.collection :as collection]
-            [metabase.public-settings :as public-settings]
-            [metabase.query-processor.util :as qp.util]
-            [metabase.util.i18n :refer [trs]]
-            [toucan.db :as db]))
+  (:require
+   [clojure.string :as str]
+   [medley.core :as m]
+   [metabase.api.common :as api]
+   [metabase.automagic-dashboards.filters :as filters]
+   [metabase.models.card :as card]
+   [metabase.models.collection :as collection]
+   [metabase.public-settings :as public-settings]
+   [metabase.query-processor.util :as qp.util]
+   [metabase.util.i18n :refer [trs]]
+   [metabase.util.log :as log]
+   [toucan2.core :as t2]))
+
+(set! *warn-on-reflection* true)
 
 (def ^Long grid-width
   "Total grid width."
@@ -25,21 +28,22 @@
   4)
 
 (defn create-collection!
-  "Create a new collection."
+  "Create and return a new collection."
   [title color description parent-collection-id]
-  (db/insert! 'Collection
-    (merge
-     {:name        title
-      :color       color
-      :description description}
-     (when parent-collection-id
-       {:location (collection/children-location (db/select-one ['Collection :location :id]
-                                                  :id parent-collection-id))}))))
+  (first (t2/insert-returning-instances!
+           'Collection
+           (merge
+             {:name        title
+              :color       color
+              :description description}
+             (when parent-collection-id
+               {:location (collection/children-location (t2/select-one ['Collection :location :id]
+                                                                       :id parent-collection-id))})))))
 
 (defn get-or-create-root-container-collection
   "Get or create container collection for automagic dashboards in the root collection."
   []
-  (or (db/select-one 'Collection
+  (or (t2/select-one 'Collection
         :name     "Automatically Generated Dashboards"
         :location "/")
       (create-collection! "Automatically Generated Dashboards" "#509EE3" nil nil)))
@@ -122,6 +126,14 @@
 
                                      y_label       (assoc :graph.y_axis.title_text y_label)))}))
 
+
+(defn card-defaults
+  "Default properties for a dashcard on magic dashboard."
+  []
+  {:id                     (gensym)
+   :dashboard_tab_id       nil
+   :visualization_settings {}})
+
 (defn- add-card
   "Add a card to dashboard `dashboard` at position [`x`, `y`]."
   [dashboard {:keys [title description dataset_query width height id] :as card} [x y]]
@@ -133,33 +145,34 @@
                   :id            (or id (gensym))}
                  (merge (visualization-settings card))
                  card/populate-query-fields)]
-    (update dashboard :ordered_cards conj {:col                    y
-                                           :row                    x
-                                           :size_x                 width
-                                           :size_y                 height
-                                           :card                   card
-                                           :card_id                (:id card)
-                                           :visualization_settings {}
-                                           :id                     (gensym)})))
+    (update dashboard :ordered_cards conj
+            (merge (card-defaults)
+             {:col                    y
+              :row                    x
+              :size_x                 width
+              :size_y                 height
+              :card                   card
+              :card_id                (:id card)
+              :visualization_settings {}}))))
 
 (defn add-text-card
   "Add a text card to dashboard `dashboard` at position [`x`, `y`]."
   [dashboard {:keys [text width height visualization-settings]} [x y]]
   (update dashboard :ordered_cards conj
-          {:creator_id             api/*current-user-id*
-           :visualization_settings (merge
-                                    {:text         text
-                                     :virtual_card {:name                   nil
-                                                    :display                :text
-                                                    :dataset_query          {}
-                                                    :visualization_settings {}}}
-                                    visualization-settings)
-           :col                    y
-           :row                    x
-           :size_x                 width
-           :size_y                 height
-           :card                   nil
-           :id                     (gensym)}))
+          (merge (card-defaults)
+                 {:creator_id             api/*current-user-id*
+                  :visualization_settings (merge
+                                            {:text         text
+                                             :virtual_card {:name                   nil
+                                                            :display                :text
+                                                            :dataset_query          {}
+                                                            :visualization_settings {}}}
+                                            visualization-settings)
+                  :col                    y
+                  :row                    x
+                  :size_x                 width
+                  :size_y                 height
+                  :card                   nil})))
 
 (defn- make-grid
   [width height]

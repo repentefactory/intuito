@@ -1,5 +1,4 @@
-/* eslint-disable react/prop-types */
-import React, { Component } from "react";
+import { Component } from "react";
 import PropTypes from "prop-types";
 import { t } from "ttag";
 import CheckBox from "metabase/core/components/CheckBox";
@@ -92,11 +91,12 @@ export default class SelectPicker extends Component {
         {validOptions.length <= 10 && !regex ? null : (
           <div className="px1 pt1">
             <ListSearchField
-              hasClearButton
-              onChange={this.updateSearchText}
+              fullWidth
+              autoFocus
+              onResetClick={() => this.updateSearchText("")}
+              onChange={e => this.updateSearchText(e.target.value)}
               value={this.state.searchText}
               placeholder={t`Find a value`}
-              autoFocus={true}
             />
           </div>
         )}

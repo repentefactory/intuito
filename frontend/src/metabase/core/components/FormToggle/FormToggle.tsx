@@ -1,22 +1,41 @@
-import React, { forwardRef, ReactNode, Ref } from "react";
+import { forwardRef, ReactNode, Ref, useCallback } from "react";
 import { useField } from "formik";
 import { useUniqueId } from "metabase/hooks/use-unique-id";
 import Toggle, { ToggleProps } from "metabase/core/components/Toggle";
 import FormField from "metabase/core/components/FormField";
 
-export interface FormToggleProps
-  extends Omit<ToggleProps, "value" | "onChange" | "onBlur"> {
+export interface FormToggleProps extends Omit<ToggleProps, "value" | "onBlur"> {
   name: string;
   title?: string;
+  actions?: ReactNode;
   description?: ReactNode;
+  optional?: boolean;
 }
 
 const FormToggle = forwardRef(function FormToggle(
-  { name, className, style, title, description, ...props }: FormToggleProps,
+  {
+    name,
+    className,
+    style,
+    title,
+    actions,
+    description,
+    onChange,
+    optional,
+    ...props
+  }: FormToggleProps,
   ref: Ref<HTMLDivElement>,
 ) {
   const id = useUniqueId();
   const [{ value, onBlur }, { error, touched }, { setValue }] = useField(name);
+
+  const handleChange = useCallback(
+    (value: boolean) => {
+      setValue(value);
+      onChange?.(value);
+    },
+    [setValue, onChange],
+  );
 
   return (
     <FormField
@@ -28,17 +47,19 @@ const FormToggle = forwardRef(function FormToggle(
       orientation="horizontal"
       htmlFor={id}
       error={touched ? error : undefined}
+      optional={optional}
     >
       <Toggle
         {...props}
         id={id}
         name={name}
         value={value ?? false}
-        onChange={setValue}
+        onChange={handleChange}
         onBlur={onBlur}
       />
     </FormField>
   );
 });
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default FormToggle;

@@ -1,10 +1,8 @@
 /* eslint-disable react/prop-types */
-import React from "react";
-
 import { t } from "ttag";
 import cx from "classnames";
 
-import Tooltip from "metabase/components/Tooltip";
+import Tooltip from "metabase/core/components/Tooltip";
 import Button from "metabase/core/components/Button";
 
 export default function QuestionNotebookButton({
@@ -17,7 +15,7 @@ export default function QuestionNotebookButton({
   return (
     <Tooltip
       tooltip={isShowingNotebook ? t`Hide editor` : t`Show editor`}
-      placement="bottom"
+      placement="top"
     >
       <Button
         borderless={!isShowingNotebook}

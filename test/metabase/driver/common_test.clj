@@ -1,12 +1,13 @@
 (ns metabase.driver.common-test
-  (:require [clojure.core.memoize :as memoize]
-            [clojure.test :refer :all]
-            [metabase.driver :as driver]
-            [metabase.driver.common :as driver.common]
-            [metabase.driver.util :as driver.u]
-            [metabase.models.setting :as setting]
-            [metabase.public-settings :as public-settings]
-            [metabase.public-settings.premium-features :as premium-features]))
+  (:require
+   [clojure.core.memoize :as memoize]
+   [clojure.test :refer :all]
+   [metabase.driver :as driver]
+   [metabase.driver.common :as driver.common]
+   [metabase.driver.util :as driver.u]
+   [metabase.models.setting :as setting]
+   [metabase.public-settings :as public-settings]
+   [metabase.public-settings.premium-features :as premium-features]))
 
 (deftest base-type-inference-test
   (is (= :type/Text
@@ -64,3 +65,12 @@
             ip-address-field (first
                               (filter #(= (:name %) "cloud-ip-address-info") connection-props))]
         (is (re-find #"If your database is behind a firewall" (:placeholder ip-address-field)))))))
+
+(deftest ^:parallel json-unfolding-default-test
+  (testing "JSON Unfolding database support details behave as they're supposed to"
+    (are [details expected] (= expected
+                               (driver.common/json-unfolding-default {:details details}))
+      {}                      true
+      {:json-unfolding nil}   true
+      {:json-unfolding true}  true
+      {:json-unfolding false} false)))

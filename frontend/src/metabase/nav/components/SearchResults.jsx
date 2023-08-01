@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import PropTypes from "prop-types";
 import { t } from "ttag";
 import { connect } from "react-redux";
@@ -7,7 +7,7 @@ import _ from "underscore";
 
 import { DEFAULT_SEARCH_LIMIT } from "metabase/lib/constants";
 import Search from "metabase/entities/search";
-import SearchResult from "metabase/search/components/SearchResult";
+import { SearchResult } from "metabase/search/components/SearchResult";
 import EmptyState from "metabase/components/EmptyState";
 import { useListKeyboardNavigation } from "metabase/hooks/use-list-keyboard-navigation";
 import { EmptyStateContainer } from "./SearchResults.styled";
@@ -15,13 +15,23 @@ import { EmptyStateContainer } from "./SearchResults.styled";
 const propTypes = {
   list: PropTypes.array,
   onChangeLocation: PropTypes.func,
+  onEntitySelect: PropTypes.func,
+  forceEntitySelect: PropTypes.bool,
   searchText: PropTypes.string,
 };
 
-const SearchResults = ({ list, onChangeLocation, searchText }) => {
+const SearchResults = ({
+  list,
+  onChangeLocation,
+  onEntitySelect,
+  forceEntitySelect,
+  searchText,
+}) => {
   const { reset, getRef, cursorIndex } = useListKeyboardNavigation({
     list,
-    onEnter: item => onChangeLocation(item.getUrl()),
+    onEnter: onEntitySelect
+      ? onEntitySelect
+      : item => onChangeLocation(item.getUrl()),
     resetOnListChange: false,
   });
 
@@ -34,15 +44,24 @@ const SearchResults = ({ list, onChangeLocation, searchText }) => {
   return (
     <ul data-testid="search-results-list">
       {hasResults ? (
-        list.map((item, index) => (
-          <li key={`${item.model}:${item.id}`} ref={getRef(item)}>
-            <SearchResult
-              result={item}
-              compact={true}
-              isSelected={cursorIndex === index}
-            />
-          </li>
-        ))
+        list.map((item, index) => {
+          const isIndexedEntity = item.model === "indexed-entity";
+          const onClick =
+            onEntitySelect && (isIndexedEntity || forceEntitySelect)
+              ? onEntitySelect
+              : undefined;
+
+          return (
+            <li key={`${item.model}:${item.id}`} ref={getRef(item)}>
+              <SearchResult
+                result={item}
+                compact={true}
+                isSelected={cursorIndex === index}
+                onClick={onClick}
+              />
+            </li>
+          );
+        })
       ) : (
         <EmptyStateContainer>
           <EmptyState message={t`Didn't find anything`} icon="search" />
@@ -65,6 +84,7 @@ export default _.compose(
     query: (_state, props) => ({
       q: props.searchText,
       limit: DEFAULT_SEARCH_LIMIT,
+      models: props.models,
     }),
   }),
 )(SearchResults);

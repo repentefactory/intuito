@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import PropTypes from "prop-types";
 import _ from "underscore";
 
@@ -8,9 +8,9 @@ import ParameterSidebar from "metabase/parameters/components/ParameterSidebar";
 import SharingSidebar from "metabase/sharing/components/SharingSidebar";
 import * as MetabaseAnalytics from "metabase/lib/analytics";
 import ClickBehaviorSidebar from "./ClickBehaviorSidebar";
-import DashboardInfoSidebar from "./DashboardInfoSidebar";
+import { DashboardInfoSidebar } from "./DashboardInfoSidebar";
 import { AddCardSidebar } from "./add-card-sidebar/AddCardSidebar";
-import { AddActionSidebar } from "./AddActionSidebar";
+import { ActionSidebar } from "./ActionSidebar";
 
 DashboardSidebars.propTypes = {
   dashboard: PropTypes.object,
@@ -25,12 +25,14 @@ DashboardSidebars.propTypes = {
   onUpdateDashCardVisualizationSettings: PropTypes.func.isRequired,
   onUpdateDashCardColumnSettings: PropTypes.func.isRequired,
   setEditingParameter: PropTypes.func.isRequired,
-  setParameter: PropTypes.func.isRequired,
   setParameterName: PropTypes.func.isRequired,
   setParameterDefaultValue: PropTypes.func.isRequired,
   setParameterIsMultiSelect: PropTypes.func.isRequired,
-  dashcardData: PropTypes.object,
+  setParameterQueryType: PropTypes.func.isRequired,
+  setParameterSourceType: PropTypes.func.isRequired,
+  setParameterSourceConfig: PropTypes.func.isRequired,
   setParameterFilteringParameters: PropTypes.func.isRequired,
+  dashcardData: PropTypes.object,
   isSharing: PropTypes.bool.isRequired,
   isEditing: PropTypes.bool.isRequired,
   isFullscreen: PropTypes.bool.isRequired,
@@ -42,7 +44,7 @@ DashboardSidebars.propTypes = {
   }).isRequired,
   closeSidebar: PropTypes.func.isRequired,
   setDashboardAttribute: PropTypes.func,
-  saveDashboardAndCards: PropTypes.func,
+  selectedTabId: PropTypes.number,
 };
 
 export function DashboardSidebars({
@@ -56,29 +58,32 @@ export function DashboardSidebars({
   onReplaceAllDashCardVisualizationSettings,
   onUpdateDashCardVisualizationSettings,
   onUpdateDashCardColumnSettings,
-  setParameter,
   setParameterName,
   setParameterDefaultValue,
   setParameterIsMultiSelect,
-  dashcardData,
+  setParameterQueryType,
+  setParameterSourceType,
+  setParameterSourceConfig,
   setParameterFilteringParameters,
+  dashcardData,
   isFullscreen,
   onCancel,
   params,
   sidebar,
   closeSidebar,
   setDashboardAttribute,
-  saveDashboardAndCards,
+  selectedTabId,
 }) {
   const handleAddCard = useCallback(
     cardId => {
       addCardToDashboard({
         dashId: dashboard.id,
         cardId: cardId,
+        tabId: selectedTabId,
       });
       MetabaseAnalytics.trackStructEvent("Dashboard", "Add Card");
     },
-    [addCardToDashboard, dashboard.id],
+    [addCardToDashboard, dashboard.id, selectedTabId],
   );
 
   if (isFullscreen) {
@@ -93,16 +98,22 @@ export function DashboardSidebars({
           onSelect={handleAddCard}
         />
       );
-    case SIDEBAR_NAME.addActionForm:
-    case SIDEBAR_NAME.addActionButton:
+    case SIDEBAR_NAME.action: {
+      const onUpdateVisualizationSettings = settings =>
+        onUpdateDashCardVisualizationSettings(
+          sidebar.props.dashcardId,
+          settings,
+        );
+
       return (
-        <AddActionSidebar
+        <ActionSidebar
           dashboard={dashboard}
-          displayType={
-            sidebar.name === SIDEBAR_NAME.addActionForm ? "form" : "button"
-          }
+          dashcardId={sidebar.props.dashcardId}
+          onUpdateVisualizationSettings={onUpdateVisualizationSettings}
+          onClose={closeSidebar}
         />
       );
+    }
     case SIDEBAR_NAME.clickBehavior:
       return (
         <ClickBehaviorSidebar
@@ -130,23 +141,16 @@ export function DashboardSidebars({
         <ParameterSidebar
           parameter={parameter}
           otherParameters={otherParameters}
-          remove={() => {
-            closeSidebar();
-            removeParameter(editingParameterId);
-          }}
-          done={() => closeSidebar()}
-          showAddParameterPopover={showAddParameterPopover}
-          setParameter={setParameter}
-          setName={name => setParameterName(editingParameterId, name)}
-          setDefaultValue={value =>
-            setParameterDefaultValue(editingParameterId, value)
-          }
-          setIsMultiSelect={value =>
-            setParameterIsMultiSelect(editingParameterId, value)
-          }
-          setFilteringParameters={ids =>
-            setParameterFilteringParameters(editingParameterId, ids)
-          }
+          onChangeName={setParameterName}
+          onChangeDefaultValue={setParameterDefaultValue}
+          onChangeIsMultiSelect={setParameterIsMultiSelect}
+          onChangeQueryType={setParameterQueryType}
+          onChangeSourceType={setParameterSourceType}
+          onChangeSourceConfig={setParameterSourceConfig}
+          onChangeFilteringParameters={setParameterFilteringParameters}
+          onRemoveParameter={removeParameter}
+          onShowAddParameterPopover={showAddParameterPopover}
+          onClose={closeSidebar}
         />
       );
     }
@@ -162,7 +166,6 @@ export function DashboardSidebars({
       return (
         <DashboardInfoSidebar
           dashboard={dashboard}
-          saveDashboardAndCards={saveDashboardAndCards}
           setDashboardAttribute={setDashboardAttribute}
         />
       );

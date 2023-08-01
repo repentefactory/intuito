@@ -1,14 +1,15 @@
 (ns metabase-enterprise.audit-app.pages.dashboards
   "Dashboards overview page."
-  (:require [metabase-enterprise.audit-app.interface :as audit.i]
-            [metabase-enterprise.audit-app.pages.common :as common]
-            [metabase-enterprise.audit-app.pages.common.dashboards :as dashboards]
-            [metabase.util.honeysql-extensions :as hx]
-            [schema.core :as s]))
+  (:require
+   [metabase-enterprise.audit-app.interface :as audit.i]
+   [metabase-enterprise.audit-app.pages.common :as common]
+   [metabase-enterprise.audit-app.pages.common.dashboards :as dashboards]
+   [metabase.util.honey-sql-2 :as h2x]
+   [metabase.util.malli :as mu]))
 
 ;; Two-series timeseries that includes total number of Dashboard views and saves broken out by a `datetime-unit`.
-(s/defmethod audit.i/internal-query ::views-and-saves-by-time
-  [_ datetime-unit :- common/DateTimeUnitStr]
+(mu/defmethod audit.i/internal-query ::views-and-saves-by-time
+  [_query-type datetime-unit :- common/DateTimeUnitStr]
   {:metadata [[:date  {:display_name "Date",  :base_type (common/datetime-unit-str->base-type datetime-unit)}]
               [:views {:display_name "Views", :base_type :type/Integer}]
               [:saves {:display_name "Saves", :base_type :type/Integer}]]
@@ -18,7 +19,7 @@
                                 {:select   [[(common/grouped-datetime datetime-unit :timestamp) :date]
                                             [:%count.* :views]]
                                  :from     [:view_log]
-                                 :where    [:= :model (hx/literal "dashboard")]
+                                 :where    [:= :model (h2x/literal "dashboard")]
                                  :group-by [(common/grouped-datetime datetime-unit :timestamp)]})
                   date->views  (zipmap (map :date views) (map :views views))
                   saves        (common/query
@@ -46,7 +47,7 @@
                            [:%count.* :views]]
                :from      [[:view_log :vl]]
                :left-join [[:report_dashboard :d] [:= :vl.model_id :d.id]]
-               :where     [:= :vl.model (hx/literal "dashboard")]
+               :where     [:= :vl.model (h2x/literal "dashboard")]
                :group-by  [:d.id]
                :order-by  [[:%count.* :desc]]
                :limit     10})})
@@ -64,17 +65,17 @@
                                                        [:%count.* :views]]
                                            :from      [[:view_log :vl]]
                                            :left-join [[:report_dashboard :d] [:= :vl.model_id :d.id]]
-                                           :where     [:= :vl.model (hx/literal "dashboard")]
+                                           :where     [:= :vl.model (h2x/literal "dashboard")]
                                            :group-by  [:d.id]
                                            :order-by  [[:%count.* :desc]]
                                            :limit     10}]
                            [:card_running_time {:select   [:qe.card_id
-                                                           [:%avg.qe.running_time :avg_running_time]]
+                                                           [[:avg :qe.running_time] :avg_running_time]]
                                                 :from     [[:query_execution :qe]]
                                                 :where    [:not= :qe.card_id nil]
                                                 :group-by [:qe.card_id]}]
                            [:dash_avg_running_time {:select    [[:d.id :dashboard_id]
-                                                                [:%avg.rt.avg_running_time :avg_running_time]]
+                                                                [[:avg :rt.avg_running_time] :avg_running_time]]
                                                     :from      [[:report_dashboardcard :dc]]
                                                     :left-join [[:card_running_time :rt] [:= :dc.card_id :rt.card_id]
                                                                 [:report_dashboard :d]   [:= :dc.dashboard_id :d.id]]
@@ -98,13 +99,13 @@
               [:avg_running_time {:display_name "Avg. Question Load Time (ms)", :base_type :type/Decimal}]]
    :results  (common/reducible-query
               {:with      [[:card_running_time {:select   [:qe.card_id
-                                                           [:%avg.qe.running_time :avg_running_time]]
+                                                           [[:avg :qe.running_time] :avg_running_time]]
                                                 :from     [[:query_execution :qe]]
                                                 :where    [:not= :qe.card_id nil]
                                                 :group-by [:qe.card_id]}]]
                :select    [[:d.id :dashboard_id]
                            [:d.name :dashboard_name]
-                           [:%avg.rt.avg_running_time :avg_running_time]]
+                           [[:avg :rt.avg_running_time] :avg_running_time]]
                :from      [[:report_dashboardcard :dc]]
                :left-join [[:card_running_time :rt] [:= :dc.card_id :rt.card_id]
                            [:report_dashboard :d]   [:= :dc.dashboard_id :d.id]]
@@ -129,8 +130,8 @@
                :limit    10})})
 
 ;; Internal audit app query powering a table of different Dashboards with lots of extra info about them.
-(s/defmethod audit.i/internal-query ::table
+(mu/defmethod audit.i/internal-query ::table
   ([query-type]
    (audit.i/internal-query query-type nil))
-  ([_ query-string :- (s/maybe s/Str)]
+  ([_query-type query-string :- [:maybe :string]]
    (dashboards/table query-string)))

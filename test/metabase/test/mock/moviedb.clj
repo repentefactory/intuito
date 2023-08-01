@@ -1,6 +1,7 @@
 (ns metabase.test.mock.moviedb
   "A simple relational schema based mocked for testing. 4 tables w/ some FKs."
-  (:require [metabase.driver :as driver]))
+  (:require
+   [metabase.driver :as driver]))
 
 ;; TODO - this whole fake driver is used in exactly one test. Can definitely remove a lot of the stuff here since it's
 ;; not used.
@@ -94,4 +95,4 @@
      {:keypath "movies.description", :value "A cinematic adventure."}
      {:keypath "description", :value "Information about movies"}]))
 
-(defmethod driver/supports? [::moviedb :foreign-keys] [_ _] true)
+(defmethod driver/database-supports? [::moviedb :foreign-keys] [_driver _feature _db] true)

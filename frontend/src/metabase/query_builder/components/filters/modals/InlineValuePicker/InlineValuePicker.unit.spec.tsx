@@ -1,86 +1,50 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
-import React from "react";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "__support__/ui";
+import { createMockMetadata } from "__support__/metadata";
 
-import { metadata } from "__support__/sample_database_fixture";
+import { checkNotNull } from "metabase/core/utils/types";
 
-import Field from "metabase-lib/metadata/Field";
+import { createMockField } from "metabase-types/api/mocks";
+import { createAdHocCard } from "metabase-types/api/mocks/presets";
+
 import Filter from "metabase-lib/queries/structured/Filter";
 import Question from "metabase-lib/Question";
+import type StructuredQuery from "metabase-lib/queries/StructuredQuery";
 
 import { InlineValuePicker } from "./InlineValuePicker";
 
-const pkField = new Field({
-  database_type: "test",
-  semantic_type: "type/PK",
-  table_id: 8,
-  name: "pk_field",
-  has_field_values: "none",
-  values: [],
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Integer",
-  id: 138,
-  base_type: "type/Integer",
-  metadata,
-});
-
-const fkField = new Field({
-  database_type: "test",
-  semantic_type: "type/FK",
-  table_id: 8,
-  name: "fk_field",
-  has_field_values: "none",
-  values: [],
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Integer",
-  id: 139,
-  base_type: "type/Integer",
-  metadata,
-});
-
-const textField = new Field({
-  database_type: "test",
-  semantic_type: "",
-  table_id: 8,
-  name: "text_field",
-  has_field_values: "none",
-  values: [],
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Text",
-  id: 140,
-  base_type: "type/Text",
-  metadata,
-});
-
-metadata.fields[pkField.id] = pkField;
-metadata.fields[fkField.id] = fkField;
-metadata.fields[textField.id] = textField;
-
-const card = {
-  dataset_query: {
-    database: 5,
-    query: {
-      "source-table": 8,
-    },
-    type: "query",
-  },
-  display: "table",
-  visualization_settings: {},
-};
-
-const question = new Question(card, metadata);
-const query = question.query();
+const PK_FIELD_ID = 1;
+const TEXT_FIELD_ID = 2;
 
 describe("InlineValuePicker", () => {
+  const metadata = createMockMetadata({
+    fields: [
+      createMockField({
+        id: PK_FIELD_ID,
+        base_type: "type/Integer",
+        effective_type: "type/Integer",
+        semantic_type: "type/PK",
+        has_field_values: "none",
+      }),
+      createMockField({
+        id: TEXT_FIELD_ID,
+        base_type: "type/Text",
+        effective_type: "type/Text",
+        semantic_type: null,
+      }),
+    ],
+  });
+
+  const question = new Question(createAdHocCard(), metadata);
+  const query = question.query() as StructuredQuery;
+
+  const pkField = checkNotNull(metadata.field(PK_FIELD_ID));
+  const textField = checkNotNull(metadata.field(TEXT_FIELD_ID));
+
   it("renders an inline value picker with values fields", () => {
     const testFilter = new Filter(
-      ["=", ["field", pkField.id, null], undefined],
+      ["=", pkField.reference(), undefined],
       null,
       query,
     );
@@ -94,13 +58,13 @@ describe("InlineValuePicker", () => {
       />,
     );
 
-    screen.getByTestId("value-picker");
-    screen.getByPlaceholderText("Enter an ID");
+    expect(screen.getByTestId("value-picker")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Enter an ID")).toBeInTheDocument();
   });
 
   it("loads an existing set of key filter values", () => {
     const testFilter = new Filter(
-      ["=", ["field", pkField.id, null], 777, 888],
+      ["=", pkField.reference(), 777, 888],
       null,
       query,
     );
@@ -113,13 +77,13 @@ describe("InlineValuePicker", () => {
         handleChange={changeSpy}
       />,
     );
-    screen.getByText("777");
-    screen.getByText("888");
+    expect(screen.getByText("777")).toBeInTheDocument();
+    expect(screen.getByText("888")).toBeInTheDocument();
   });
 
   it("loads an existing set of text filter values", async () => {
     const testFilter = new Filter(
-      ["!=", ["field", textField.id, null], "fooBarBaz", "BazBarFoo"],
+      ["!=", textField.reference(), "fooBarBaz", "BazBarFoo"],
       null,
       query,
     );
@@ -133,13 +97,13 @@ describe("InlineValuePicker", () => {
       />,
     );
 
-    screen.getByText("fooBarBaz");
-    screen.getByText("BazBarFoo");
+    expect(screen.getByText("fooBarBaz")).toBeInTheDocument();
+    expect(screen.getByText("BazBarFoo")).toBeInTheDocument();
   });
 
   it("adds additional filter values", () => {
     const testFilter = new Filter(
-      ["=", ["field", pkField.id, null], undefined],
+      ["=", pkField.reference(), undefined],
       null,
       query,
     );
@@ -165,7 +129,7 @@ describe("InlineValuePicker", () => {
 
   it("removes filter values", async () => {
     const testFilter = new Filter(
-      ["=", ["field", pkField.id, null], 777, 888],
+      ["=", pkField.reference(), 777, 888],
       null,
       query,
     );
@@ -180,18 +144,14 @@ describe("InlineValuePicker", () => {
     );
 
     // click remove on the first data item, which is 777
-    const [firstDataItem] = await screen.getAllByLabelText("close icon");
+    const [firstDataItem] = screen.getAllByLabelText("close icon");
     userEvent.click(firstDataItem);
     expect(changeSpy).toHaveBeenCalled();
     expect(changeSpy.mock.calls[0][0].arguments()).toEqual([888]);
   });
 
   it("tokenizes inputs for multi-input operators", async () => {
-    let testFilter = new Filter(
-      ["=", ["field", textField.id, null]],
-      null,
-      query,
-    );
+    let testFilter = new Filter(["=", textField.reference()], null, query);
     const changeSpy = jest.fn(newFilter => (testFilter = newFilter));
 
     renderWithProviders(
@@ -212,7 +172,7 @@ describe("InlineValuePicker", () => {
 
   it("does not tokenize input for single-input operators", async () => {
     const testFilter = new Filter(
-      ["contains", ["field", textField.id, null]],
+      ["contains", textField.reference()],
       null,
       query,
     );
@@ -236,7 +196,7 @@ describe("InlineValuePicker", () => {
 
   it("shows multiple inputs for between filters", async () => {
     const testFilter = new Filter(
-      ["between", ["field", pkField.id, null], 14, 74],
+      ["between", pkField.reference(), 14, 74],
       null,
       query,
     );
@@ -250,16 +210,16 @@ describe("InlineValuePicker", () => {
       />,
     );
 
-    screen.getByPlaceholderText("Min");
-    screen.getByPlaceholderText("Max");
+    expect(screen.getByPlaceholderText("Min")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Max")).toBeInTheDocument();
   });
 
   const noValueOperators = ["is-null", "not-null", "is-empty", "not-empty"];
 
-  noValueOperators.forEach(op => {
-    it(`hides value input for ${op} empty operator`, () => {
+  noValueOperators.forEach(operator => {
+    it(`hides value input for ${operator} empty operator`, () => {
       const testFilter = new Filter(
-        [op, ["field", textField.id, null]],
+        [operator, textField.reference(), null],
         null,
         query,
       );

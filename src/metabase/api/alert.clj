@@ -1,31 +1,36 @@
 (ns metabase.api.alert
   "/api/alert endpoints"
-  (:require [clojure.data :as data]
-            [clojure.set :refer [difference]]
-            [compojure.core :refer [DELETE GET POST PUT]]
-            [medley.core :as m]
-            [metabase.api.common :as api]
-            [metabase.api.common.validation :as validation]
-            [metabase.email :as email]
-            [metabase.email.messages :as messages]
-            [metabase.models.card :refer [Card]]
-            [metabase.models.interface :as mi]
-            [metabase.models.pulse :as pulse]
-            [metabase.models.pulse-channel :refer [PulseChannel]]
-            [metabase.models.pulse-channel-recipient :refer [PulseChannelRecipient]]
-            [metabase.plugins.classloader :as classloader]
-            [metabase.public-settings.premium-features :as premium-features]
-            [metabase.util :as u]
-            [metabase.util.i18n :refer [tru]]
-            [metabase.util.schema :as su]
-            [schema.core :as s]
-            [toucan.db :as db]
-            [toucan.hydrate :refer [hydrate]]))
+  (:require
+   [clojure.data :as data]
+   [clojure.set :refer [difference]]
+   [compojure.core :refer [DELETE GET POST PUT]]
+   [medley.core :as m]
+   [metabase.api.common :as api]
+   [metabase.api.common.validation :as validation]
+   [metabase.config :as config]
+   [metabase.email :as email]
+   [metabase.email.messages :as messages]
+   [metabase.models.card :refer [Card]]
+   [metabase.models.interface :as mi]
+   [metabase.models.pulse :as pulse]
+   [metabase.models.pulse-channel :refer [PulseChannel]]
+   [metabase.models.pulse-channel-recipient :refer [PulseChannelRecipient]]
+   [metabase.plugins.classloader :as classloader]
+   [metabase.public-settings.premium-features :as premium-features]
+   [metabase.util :as u]
+   [metabase.util.i18n :refer [tru]]
+   [metabase.util.malli.schema :as ms]
+   [metabase.util.schema :as su]
+   [schema.core :as s]
+   [toucan2.core :as t2]))
 
-(u/ignore-exceptions
- (classloader/require 'metabase-enterprise.advanced-permissions.common))
+(set! *warn-on-reflection* true)
 
-(api/defendpoint GET "/"
+(when config/ee-available?
+  (classloader/require 'metabase-enterprise.advanced-permissions.common))
+
+#_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-schema GET "/"
   "Fetch all alerts"
   [archived user_id]
   {archived (s/maybe su/BooleanString)
@@ -33,15 +38,17 @@
   (as-> (pulse/retrieve-alerts {:archived? (Boolean/parseBoolean archived)
                                 :user-id   user_id}) <>
     (filter mi/can-read? <>)
-    (hydrate <> :can_write)))
+    (t2/hydrate <> :can_write)))
 
 (api/defendpoint GET "/:id"
   "Fetch an alert by ID"
   [id]
+  {id ms/PositiveInt}
   (-> (api/read-check (pulse/retrieve-alert id))
-      (hydrate :can_write)))
+      (t2/hydrate :can_write)))
 
-(api/defendpoint GET "/question/:id"
+#_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-schema GET "/question/:id"
   "Fetch all questions for the given question (`Card`) id"
   [id archived]
   {id       (s/maybe su/IntGreaterThanZero)
@@ -49,7 +56,7 @@
   (-> (if api/*is-superuser?*
         (pulse/retrieve-alerts-for-cards {:card-ids [id], :archived? (Boolean/parseBoolean archived)})
         (pulse/retrieve-user-alerts-for-card {:card-id id, :user-id api/*current-user-id*, :archived? (Boolean/parseBoolean archived)}))
-      (hydrate :can_write)))
+      (t2/hydrate :can_write)))
 
 (defn- only-alert-keys [request]
   (u/select-keys-when request
@@ -127,7 +134,8 @@
     (assoc card :include_csv true)
     card))
 
-(api/defendpoint POST "/"
+#_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-schema POST "/"
   "Create a new Alert."
   [:as {{:keys [alert_condition card channels alert_first_only alert_above_goal]
          :as new-alert-request-body} :body}]
@@ -139,11 +147,6 @@
   (validation/check-has-application-permission :subscription false)
   ;; To create an Alert you need read perms for its Card
   (api/read-check Card (u/the-id card))
-  ;; don't allow creation of Alerts for `is_write` writeback QueryAction cards. Those are intended only for Actions
-  ;; and aren't ran for results so they don't make sense as Alerts.
-  (when (db/select-one-field :is_write Card :id (u/the-id card))
-    (throw (ex-info (tru "You cannot create an Alert for an is_write Card.")
-                    {:status-code 400})))
   ;; ok, now create the Alert
   (let [alert-card (-> card (maybe-include-csv alert_condition) pulse/card->ref)
         new-alert  (api/check-500
@@ -161,7 +164,8 @@
     (doseq [recipient (collect-alert-recipients alert)]
       (messages/send-admin-unsubscribed-alert-email! alert recipient @api/*current-user*))))
 
-(api/defendpoint PUT "/:id"
+#_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-schema PUT "/:id"
   "Update a `Alert` with ID."
   [id :as {{:keys [alert_condition alert_first_only alert_above_goal card channels archived]
             :as alert-updates} :body}]
@@ -243,13 +247,14 @@
 (api/defendpoint DELETE "/:id/subscription"
   "For users to unsubscribe themselves from the given alert."
   [id]
+  {id ms/PositiveInt}
   (validation/check-has-application-permission :subscription false)
   (let [alert (pulse/retrieve-alert id)]
     (api/read-check alert)
     (api/let-404 [alert-id (u/the-id alert)
-                  pc-id    (db/select-one-id PulseChannel :pulse_id alert-id :channel_type "email")
-                  pcr-id   (db/select-one-id PulseChannelRecipient :pulse_channel_id pc-id :user_id api/*current-user-id*)]
-      (db/delete! PulseChannelRecipient :id pcr-id))
+                  pc-id    (t2/select-one-pk PulseChannel :pulse_id alert-id :channel_type "email")
+                  pcr-id   (t2/select-one-pk PulseChannelRecipient :pulse_channel_id pc-id :user_id api/*current-user-id*)]
+      (t2/delete! PulseChannelRecipient :id pcr-id))
     ;; Send emails letting people know they have been unsubscribe
     (when (email/email-configured?)
       (messages/send-you-unsubscribed-alert-email! alert @api/*current-user*))

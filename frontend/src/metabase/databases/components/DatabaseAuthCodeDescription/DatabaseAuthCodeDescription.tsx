@@ -1,8 +1,7 @@
-import React from "react";
 import { useFormikContext } from "formik";
 import { jt, t } from "ttag";
 import ExternalLink from "metabase/core/components/ExternalLink";
-import { DatabaseValues } from "../../types";
+import { DatabaseData } from "metabase-types/api";
 
 const AUTH_CODE_URLS: Record<string, string> = {
   bigquery:
@@ -12,7 +11,7 @@ const AUTH_CODE_URLS: Record<string, string> = {
 };
 
 const DatabaseAuthCodeDescription = (): JSX.Element | null => {
-  const { values } = useFormikContext<DatabaseValues>();
+  const { values } = useFormikContext<DatabaseData>();
   const { engine, details } = values;
 
   if (!engine || !AUTH_CODE_URLS[engine]) {
@@ -44,4 +43,5 @@ const DatabaseAuthCodeDescription = (): JSX.Element | null => {
   );
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default DatabaseAuthCodeDescription;

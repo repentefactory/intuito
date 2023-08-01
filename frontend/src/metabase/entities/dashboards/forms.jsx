@@ -1,4 +1,3 @@
-import React from "react";
 import { t } from "ttag";
 import MetabaseSettings from "metabase/lib/settings";
 import { PLUGIN_CACHING } from "metabase/plugins";
@@ -81,24 +80,5 @@ export default {
       }
       return fields;
     },
-  },
-  dataAppPage: {
-    fields: () => [
-      {
-        ...createNameField(),
-        placeholder: t`What is the name of your page?`,
-      },
-      createDescriptionField(),
-      {
-        ...createCollectionIdField(),
-        type: "hidden",
-      },
-      {
-        name: "is_app_page",
-        type: "hidden",
-        initial: true,
-        normalize: () => true,
-      },
-    ],
   },
 };

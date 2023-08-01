@@ -1,7 +1,7 @@
 import { generateSchemaId } from "metabase-lib/metadata/utils/schema";
 
 export const SAVED_QUESTIONS_VIRTUAL_DB_ID = -1337;
-export const ROOT_COLLECTION_VIRTUAL_SCHEMA_NAME = "Everything else";
+const ROOT_COLLECTION_VIRTUAL_SCHEMA_NAME = "Everything else";
 
 export const ROOT_COLLECTION_VIRTUAL_SCHEMA = getCollectionVirtualSchemaId({
   id: null,
@@ -24,8 +24,12 @@ export function getCollectionVirtualSchemaId(collection, { isDatasets } = {}) {
   );
 }
 
-export function getQuestionVirtualTableId(card) {
-  return `card__${card.id}`;
+export function getRootCollectionVirtualSchemaId({ isModels }) {
+  return getCollectionVirtualSchemaId(null, { isDatasets: isModels });
+}
+
+export function getQuestionVirtualTableId(id) {
+  return `card__${id}`;
 }
 
 export function isVirtualCardId(tableId) {
@@ -42,7 +46,7 @@ export function getQuestionIdFromVirtualTableId(tableId) {
 
 export function convertSavedQuestionToVirtualTable(card) {
   return {
-    id: getQuestionVirtualTableId(card),
+    id: getQuestionVirtualTableId(card.id),
     display_name: card.name,
     description: card.description,
     moderated_status: card.moderated_status,

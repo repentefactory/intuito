@@ -6,14 +6,17 @@ import { generateSchemaId } from "metabase-lib/metadata/utils/schema";
 import { SAVED_QUESTIONS_VIRTUAL_DB_ID } from "metabase-lib/metadata/utils/saved-questions";
 import { getUniqueFieldId } from "metabase-lib/metadata/utils/fields";
 
+export const ActionSchema = new schema.Entity("actions");
+export const UserSchema = new schema.Entity("users");
 export const QuestionSchema = new schema.Entity("questions");
+export const ModelIndexSchema = new schema.Entity("modelIndexes");
+export const IndexedEntitySchema = new schema.Entity("indexedEntities");
 export const BookmarkSchema = new schema.Entity("bookmarks");
 export const DashboardSchema = new schema.Entity("dashboards");
 export const PulseSchema = new schema.Entity("pulses");
 export const CollectionSchema = new schema.Entity("collections");
 
 export const DatabaseSchema = new schema.Entity("databases");
-export const DataAppSchema = new schema.Entity("dataApps");
 export const SchemaSchema = new schema.Entity("schemas");
 export const TableSchema = new schema.Entity(
   "tables",
@@ -70,6 +73,7 @@ export const TimelineEventSchema = new schema.Entity("timelineEvents");
 DatabaseSchema.define({
   tables: [TableSchema],
   schemas: [SchemaSchema],
+  idFields: [FieldSchema],
 });
 
 SchemaSchema.define({
@@ -80,6 +84,7 @@ SchemaSchema.define({
 TableSchema.define({
   db: DatabaseSchema,
   fields: [FieldSchema],
+  fks: [{ origin: FieldSchema, destination: FieldSchema }],
   segments: [SegmentSchema],
   metrics: [MetricSchema],
   schema: SchemaSchema,
@@ -107,14 +112,12 @@ TimelineSchema.define({
   events: [TimelineEventSchema],
 });
 
-DataAppSchema.define({
-  collection: CollectionSchema,
-});
-
 export const ENTITIES_SCHEMA_MAP = {
+  actions: ActionSchema,
   questions: QuestionSchema,
+  modelIndexes: ModelIndexSchema,
+  indexedEntity: IndexedEntitySchema,
   bookmarks: BookmarkSchema,
-  dataApps: DataAppSchema,
   dashboards: DashboardSchema,
   pulses: PulseSchema,
   collections: CollectionSchema,

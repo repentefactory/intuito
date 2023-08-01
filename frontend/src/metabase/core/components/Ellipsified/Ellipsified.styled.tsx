@@ -12,13 +12,14 @@ const clampCss = (props: EllipsifiedRootProps) => css`
   -webkit-line-clamp: ${props.lines};
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: break-word;
 `;
 
 interface EllipsifiedRootProps {
   lines?: number;
-  "data-testId"?: string;
+  "data-testid"?: string;
 }
 
 export const EllipsifiedRoot = styled.div<EllipsifiedRootProps>`
-  ${props => (props.lines ?? 1 > 1 ? clampCss(props) : ellipsifyCss)};
+  ${props => ((props.lines ?? 1) > 1 ? clampCss(props) : ellipsifyCss)};
 `;

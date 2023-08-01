@@ -2,16 +2,17 @@
   "Middleware for automatically bucketing unbucketed `:type/Temporal` (but not `:type/Time`) Fields with `:day`
   bucketing. Applies to any unbucketed Field in a breakout, or fields in a filter clause being compared against
   `yyyy-MM-dd` format datetime strings."
-  (:require [clojure.set :as set]
-            [clojure.walk :as walk]
-            [medley.core :as m]
-            [metabase.mbql.predicates :as mbql.preds]
-            [metabase.mbql.schema :as mbql.s]
-            [metabase.mbql.util :as mbql.u]
-            [metabase.models.field :refer [Field]]
-            [metabase.util.schema :as su]
-            [schema.core :as s]
-            [toucan.db :as db]))
+  (:require
+   [clojure.set :as set]
+   [clojure.walk :as walk]
+   [medley.core :as m]
+   [metabase.mbql.predicates :as mbql.preds]
+   [metabase.mbql.schema :as mbql.s]
+   [metabase.mbql.util :as mbql.u]
+   [metabase.models.field :refer [Field]]
+   [metabase.util.schema :as su]
+   [schema.core :as s]
+   [toucan2.core :as t2]))
 
 (def ^:private FieldTypeInfo
   {:base-type                      (s/maybe su/FieldType)
@@ -37,7 +38,7 @@
    ;; build map of field ID -> <info from DB>
    (when-let [field-ids (seq (filter integer? (map second unbucketed-fields)))]
      (into {} (for [{id :id, :as field}
-                    (db/select [Field :id :base_type :effective_type :semantic_type]
+                    (t2/select [Field :id :base_type :effective_type :semantic_type]
                       :id [:in (set field-ids)])]
                 [id (set/rename-keys (select-keys field
                                                   [:base_type :effective_type :semantic_type])

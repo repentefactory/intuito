@@ -1,4 +1,4 @@
-import React, { ReactElement } from "react";
+import { ReactElement } from "react";
 
 import type { SortableElementProps } from "react-sortable-hoc";
 import {
@@ -25,6 +25,7 @@ interface SortableColumnFunctions<T> {
 
 interface SortableColumnProps<T> extends SortableColumnFunctions<T> {
   item: T;
+  isDragDisabled: boolean;
 }
 
 const SortableColumn = SortableElement(function SortableColumn<
@@ -38,6 +39,7 @@ const SortableColumn = SortableElement(function SortableColumn<
   onAdd,
   onEnable,
   onColorChange,
+  isDragDisabled = false,
 }: SortableColumnProps<T>) {
   return (
     <ColumnItem
@@ -55,7 +57,8 @@ const SortableColumn = SortableElement(function SortableColumn<
         onColorChange ? (color: string) => onColorChange(item, color) : null
       }
       color={item.color}
-      draggable
+      draggable={!isDragDisabled}
+      role="listitem"
     />
   );
 }) as unknown as <T extends SortableItem>(
@@ -78,6 +81,8 @@ const SortableColumnList = SortableContainer(function SortableColumnList<
   onAdd,
   onColorChange,
 }: SortableColumnListProps<T>) {
+  const isDragDisabled = items.length === 1;
+
   return (
     <div>
       {items.map((item, index: number) => (
@@ -91,6 +96,8 @@ const SortableColumnList = SortableContainer(function SortableColumnList<
           onEnable={onEnable}
           onAdd={onAdd}
           onColorChange={onColorChange}
+          disabled={isDragDisabled}
+          isDragDisabled={isDragDisabled}
         />
       ))}
     </div>

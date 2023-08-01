@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { Component } from "react";
+import { Component } from "react";
 import cx from "classnames";
 
 import { assoc } from "icepick";
@@ -30,7 +30,7 @@ export default class RelativeDatePicker extends Component {
     return (
       <div className={cx(className, "flex align-center")}>
         <IntervalInput
-          className="mr2 input text-right"
+          className="mr2 text-right"
           style={{
             width: 65,
             // needed to match Select's AdminSelect classes :-/

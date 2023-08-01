@@ -1,18 +1,5 @@
 import { ComponentType, ReactNode } from "react";
-import {
-  DatabaseSchedules,
-  EngineFieldOption,
-  EngineFieldType,
-} from "metabase-types/api";
-
-export interface DatabaseValues {
-  name: string;
-  engine: string | undefined;
-  details: Record<string, unknown>;
-  schedules: DatabaseSchedules;
-  auto_run_queries: boolean;
-  refingerprint: boolean;
-}
+import { EngineFieldOption, EngineFieldType } from "metabase-types/api";
 
 export interface EngineOption {
   name: string;
@@ -21,8 +8,8 @@ export interface EngineOption {
 }
 
 export interface EngineFieldOverride {
-  type?: EngineFieldType | ComponentType<EngineFieldProps>;
   name?: string;
+  type?: EngineFieldType | ComponentType<EngineFieldProps>;
   title?: string;
   description?: ReactNode;
   placeholder?: unknown;

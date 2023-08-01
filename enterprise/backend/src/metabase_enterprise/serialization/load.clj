@@ -1,53 +1,51 @@
 (ns metabase-enterprise.serialization.load
   "Load entities serialized by `metabase-enterprise.serialization.dump`."
   (:refer-clojure :exclude [load])
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [medley.core :as m]
-            [metabase-enterprise.serialization.names :as names :refer [fully-qualified-name->context]]
-            [metabase-enterprise.serialization.upsert :refer [maybe-upsert-many!]]
-            [metabase.config :as config]
-            [metabase.db.connection :as mdb.connection]
-            [metabase.mbql.normalize :as mbql.normalize]
-            [metabase.mbql.util :as mbql.u]
-            [metabase.models.card :refer [Card]]
-            [metabase.models.collection :refer [Collection]]
-            [metabase.models.dashboard :refer [Dashboard]]
-            [metabase.models.dashboard-card :refer [DashboardCard]]
-            [metabase.models.dashboard-card-series :refer [DashboardCardSeries]]
-            [metabase.models.database :as database :refer [Database]]
-            [metabase.models.dimension :refer [Dimension]]
-            [metabase.models.field :refer [Field]]
-            [metabase.models.field-values :refer [FieldValues]]
-            [metabase.models.metric :refer [Metric]]
-            [metabase.models.native-query-snippet :refer [NativeQuerySnippet]]
-            [metabase.models.pulse :refer [Pulse]]
-            [metabase.models.pulse-card :refer [PulseCard]]
-            [metabase.models.pulse-channel :refer [PulseChannel]]
-            [metabase.models.segment :refer [Segment]]
-            [metabase.models.setting :as setting]
-            [metabase.models.table :refer [Table]]
-            [metabase.models.user :as user :refer [User]]
-            [metabase.shared.models.visualization-settings :as mb.viz]
-            [metabase.util.date-2 :as u.date]
-            [metabase.util.i18n :refer [trs]]
-            [toucan.db :as db]
-            [yaml.core :as yaml]
-            [yaml.reader :as y.reader])
-  (:import java.time.temporal.Temporal
-           java.util.UUID))
+  (:require
+   [clojure.java.io :as io]
+   [clojure.string :as str]
+   [medley.core :as m]
+   [metabase-enterprise.serialization.names
+    :as names
+    :refer [fully-qualified-name->context]]
+   [metabase-enterprise.serialization.upsert :refer [maybe-upsert-many!]]
+   [metabase.config :as config]
+   [metabase.db.connection :as mdb.connection]
+   [metabase.mbql.normalize :as mbql.normalize]
+   [metabase.mbql.util :as mbql.u]
+   [metabase.models.card :refer [Card]]
+   [metabase.models.collection :refer [Collection]]
+   [metabase.models.dashboard :refer [Dashboard]]
+   [metabase.models.dashboard-card :refer [DashboardCard]]
+   [metabase.models.dashboard-card-series :refer [DashboardCardSeries]]
+   [metabase.models.database :as database :refer [Database]]
+   [metabase.models.dimension :refer [Dimension]]
+   [metabase.models.field :refer [Field]]
+   [metabase.models.field-values :refer [FieldValues]]
+   [metabase.models.metric :refer [Metric]]
+   [metabase.models.native-query-snippet :refer [NativeQuerySnippet]]
+   [metabase.models.pulse :refer [Pulse]]
+   [metabase.models.pulse-card :refer [PulseCard]]
+   [metabase.models.pulse-channel :refer [PulseChannel]]
+   [metabase.models.segment :refer [Segment]]
+   [metabase.models.setting :as setting]
+   [metabase.models.table :refer [Table]]
+   [metabase.models.user :as user :refer [User]]
+   [metabase.shared.models.visualization-settings :as mb.viz]
+   [metabase.util.date-2 :as u.date]
+   [metabase.util.i18n :refer [trs]]
+   [metabase.util.log :as log]
+   [metabase.util.yaml :as yaml]
+   [toucan2.core :as t2]))
 
-(extend-type Temporal y.reader/YAMLReader
-  (decode [data]
-    (u.date/parse data)))
+(set! *warn-on-reflection* true)
 
 (defn- slurp-dir
   [path]
   (doall
    (for [^java.io.File file (.listFiles ^java.io.File (io/file path))
          :when (-> file (.getName) (str/ends-with? ".yaml"))]
-     (yaml/from-file file true))))
+     (yaml/from-file file))))
 
 (defn- slurp-many
   [paths]
@@ -181,7 +179,7 @@
 (def ^:private ^{:arglists '([])} default-user-id
   (mdb.connection/memoize-for-application-db
    (fn []
-     (let [user (db/select-one-id User :is_superuser true)]
+     (let [user (t2/select-one-pk User :is_superuser true)]
        (assert user (trs "No admin users found! At least one admin user is needed to act as the owner for all the loaded entities."))
        user))))
 
@@ -191,11 +189,11 @@
   (.getName (io/file path)))
 
 (defn- unresolved-names->string
-  ([entity]
-   (unresolved-names->string entity nil))
-  ([entity insert-id]
+  ([model]
+   (unresolved-names->string model nil))
+  ([model insert-id]
    (str
-    (when-let [nm (:name entity)] (str "\"" nm "\""))
+    (when-let [nm (:name model)] (str "\"" nm "\""))
     (when insert-id (format " (inserted as ID %d) " insert-id))
     "missing:\n  "
     (str/join
@@ -203,7 +201,7 @@
      (map
       (fn [[k v]]
         (format "at %s -> %s" (str/join "/" v) k))
-      (::unresolved-names entity))))))
+      (::unresolved-names model))))))
 
 (defmulti load
   "Load an entity of type `model` stored at `path` in the context `context`.
@@ -217,7 +215,7 @@
 (defn- load-dimensions
   [path context]
   (maybe-upsert-many! context Dimension
-    (for [dimension (yaml/from-file (str path "/dimensions.yaml") true)]
+    (for [dimension (yaml/from-file (str path "/dimensions.yaml"))]
       (-> dimension
           (update :human_readable_field_id (comp :field fully-qualified-name->context))
           (update :field_id (comp :field fully-qualified-name->context))))))
@@ -397,6 +395,25 @@
       (pull-unresolved-names-up vs-norm [::mb.viz/column-settings] resolved-cs))
     vs-norm))
 
+(defn- resolve-table-column-field-ref [[f-type f-str f-md]]
+  (if (names/fully-qualified-field-name? f-str)
+    [f-type ((comp :field fully-qualified-name->context) f-str) f-md]
+    [f-type f-str f-md]))
+
+(defn- resolve-pivot-table-settings
+  "Resolve the entries in a :pivot_table.column_split map (which is under a :visualization_settings map). These map entries
+  may contain fully qualified field names, or even other cards. In case of an unresolved name (i.e. a card that hasn't
+  yet been loaded), we will track it under ::unresolved-names and revisit on the next pass."
+  [vs-norm]
+  (if (:pivot_table.column_split vs-norm)
+    (letfn [(resolve-vec [pivot vec-type]
+              (update-in pivot [:pivot_table.column_split vec-type] (fn [tbl-vecs]
+                                                                      (mapv resolve-table-column-field-ref tbl-vecs))))]
+      (-> vs-norm
+          (resolve-vec :rows)
+          (resolve-vec :columns)))
+    vs-norm))
+
 (defn- resolve-table-columns
   "Resolve the :table.columns key from a :visualization_settings map, which may contain fully qualified field names.
   Such fully qualified names will be converted to the numeric field ID before being filled into the loaded card. Only
@@ -404,11 +421,7 @@
   to detect or track ::unresolved-names."
   [vs-norm]
   (if (::mb.viz/table-columns vs-norm)
-    (letfn [(resolve-table-column-field-ref [[f-type f-str f-md]]
-              (if (names/fully-qualified-field-name? f-str)
-                [f-type ((comp :field fully-qualified-name->context) f-str) f-md]
-                [f-type f-str f-md]))
-            (resolve-field-id [tbl-col]
+    (letfn [(resolve-field-id [tbl-col]
               (update tbl-col ::mb.viz/table-column-field-ref resolve-table-column-field-ref))]
       (update vs-norm ::mb.viz/table-columns (fn [tbl-cols]
                                                (mapv resolve-field-id tbl-cols))))
@@ -427,9 +440,17 @@
                           resolve-top-level-click-behavior
                           resolve-column-settings
                           resolve-table-columns
+                          resolve-pivot-table-settings
                           mb.viz/norm->db)]
       (pull-unresolved-names-up entity [:visualization_settings] resolved-vs))
     entity))
+
+(defn- resolve-dashboard-parameters
+  [parameters]
+  (for [p parameters]
+    ;; Note: not using the full ::unresolved-names functionality here because this is a fix
+    ;; for a deprecated feature
+    (m/update-existing-in p [:values_source_config :card_id] fully-qualified-name->card-id)))
 
 (defn load-dashboards
   "Loads `dashboards` (which is a sequence of maps parsed from a YAML dump of dashboards) in a given `context`."
@@ -438,6 +459,7 @@
   (let [dashboard-ids   (maybe-upsert-many! context Dashboard
                                             (for [dashboard dashboards]
                                               (-> dashboard
+                                                  (update :parameters resolve-dashboard-parameters)
                                                   (dissoc :dashboard_cards)
                                                   (assoc :collection_id (:collection context)
                                                          :creator_id    (default-user-id)))))
@@ -449,7 +471,7 @@
         ;; until we can come in here and clean things up. -- Cam 2022-03-24
         _               (when (and (= (:mode context) :update)
                                    (seq dashboard-ids))
-                          (db/delete! DashboardCard :dashboard_id [:in (set dashboard-ids)]))
+                          (t2/delete! DashboardCard :dashboard_id [:in (set dashboard-ids)]))
         dashboard-cards (map :dashboard_cards dashboards)
         ;; a function that prepares a dash card for insertion, while also validating to ensure the underlying
         ;; card_id could be resolved from the fully qualified name
@@ -679,7 +701,7 @@
   "A function called on each User instance before it is inserted (via upsert)."
   [user]
   (log/infof "User with email %s is new to target DB; setting a random password" (:email user))
-  (assoc user :password (str (UUID/randomUUID))))
+  (assoc user :password (str (random-uuid))))
 
 ;; leaving comment out for now (deliberately), because this will send a password reset email to newly inserted users
 ;; when enabled in a future release; see `defmethod load "users"` below
@@ -687,7 +709,7 @@
     "A function called on the ID of each `User` instance after it is inserted (via upsert)."
     [user-id]
     (when-let [{email :email, google-auth? :google_auth, is-active? :is_active}
-               (db/select-one [User :email :google_auth :is_active] :id user-id)]
+               (t2/select-one [User :email :google_auth :is_active] :id user-id)]
       (let [reset-token        (user/set-password-reset-token! user-id)
             site-url           (public-settings/site-url)
             password-reset-url (str site-url "/auth/reset_password/" reset-token)
@@ -714,7 +736,7 @@
 (defn- derive-location
   [context]
   (if-let [parent-id (:collection context)]
-    (str (db/select-one-field :location Collection :id parent-id) parent-id "/")
+    (str (t2/select-one-fn :location Collection :id parent-id) parent-id "/")
     "/"))
 
 (defn- make-reload-fn [all-results]
@@ -773,7 +795,7 @@
 (defn load-settings
   "Load a dump of settings."
   [path context]
-  (doseq [[k v] (yaml/from-file (str path "/settings.yaml") true)
+  (doseq [[k v] (yaml/from-file (str path "/settings.yaml"))
           :when (or (= context :update)
                     (nil? (setting/get-value-of-type :string k)))]
     (setting/set-value-of-type! :string k v)))
@@ -782,6 +804,6 @@
   "Is dump at path `path` compatible with the currently running version of Metabase?"
   [path]
   (-> (str path "/manifest.yaml")
-      (yaml/from-file true)
+      yaml/from-file
       :metabase-version
       (= config/mb-version-info)))

@@ -10,11 +10,12 @@ const mapStateToProps = (state: State) => ({
   type: "saml",
   name: t`SAML`,
   description: t`Allows users to login via a SAML Identity Provider.`,
-  isConfigured: getSetting(state, "saml-configured"),
+  isConfigured: Boolean(getSetting(state, "saml-configured")),
 });
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
   onDeactivate: () => dispatch(updateSettings(SAML_SCHEMA.getDefault())),
 });
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default connect(mapStateToProps, mapDispatchToProps)(AuthCard);
