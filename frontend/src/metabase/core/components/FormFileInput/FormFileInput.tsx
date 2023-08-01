@@ -1,10 +1,4 @@
-import React, {
-  ChangeEvent,
-  forwardRef,
-  ReactNode,
-  Ref,
-  useCallback,
-} from "react";
+import { ChangeEvent, forwardRef, ReactNode, Ref, useCallback } from "react";
 import { useField } from "formik";
 import { useUniqueId } from "metabase/hooks/use-unique-id";
 import FileInput, { FileInputProps } from "metabase/core/components/FileInput";
@@ -18,6 +12,7 @@ export interface FormFileInputProps
   encoding?: FormFileInputEncoding;
   title?: string;
   description?: ReactNode;
+  optional?: boolean;
 }
 
 const FormFileInput = forwardRef(function FormFileInput(
@@ -28,6 +23,7 @@ const FormFileInput = forwardRef(function FormFileInput(
     style,
     title,
     description,
+    optional,
     ...props
   }: FormFileInputProps,
   ref: Ref<HTMLDivElement>,
@@ -49,9 +45,9 @@ const FormFileInput = forwardRef(function FormFileInput(
       style={style}
       title={title}
       description={description}
-      orientation="horizontal"
       htmlFor={id}
       error={touched ? error : undefined}
+      optional={optional}
     >
       <FileInput
         {...props}
@@ -86,4 +82,5 @@ const getFieldValue = (
   });
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default FormFileInput;

@@ -1,4 +1,4 @@
-import React, { forwardRef, ReactNode, Ref } from "react";
+import { forwardRef, ReactNode, Ref } from "react";
 import { useField } from "formik";
 import { useUniqueId } from "metabase/hooks/use-unique-id";
 import CheckBox, { CheckBoxProps } from "metabase/core/components/CheckBox";
@@ -9,10 +9,19 @@ export interface FormCheckBoxProps
   name: string;
   title?: string;
   description?: ReactNode;
+  optional?: boolean;
 }
 
 const FormCheckBox = forwardRef(function FormCheckBox(
-  { name, className, style, title, description, ...props }: FormCheckBoxProps,
+  {
+    name,
+    className,
+    style,
+    title,
+    description,
+    optional,
+    ...props
+  }: FormCheckBoxProps,
   ref: Ref<HTMLDivElement>,
 ) {
   const id = useUniqueId();
@@ -29,6 +38,7 @@ const FormCheckBox = forwardRef(function FormCheckBox(
       orientation="horizontal"
       htmlFor={id}
       error={touched ? error : undefined}
+      optional={optional}
     >
       <CheckBox
         {...props}
@@ -42,4 +52,5 @@ const FormCheckBox = forwardRef(function FormCheckBox(
   );
 });
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default FormCheckBox;

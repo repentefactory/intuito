@@ -88,9 +88,9 @@
           :rounding 0,
           :code "AUD",
           :name_plural "Australian dollars"}],
-   [:AZN {:symbol "man.",
+   [:AZN {:symbol "₼",
           :name "Azerbaijani Manat",
-          :symbol_native "ман.",
+          :symbol_native "₼",
           :decimal_digits 2,
           :rounding 0,
           :code "AZN",
@@ -543,6 +543,13 @@
           :rounding 0,
           :code "MOP",
           :name_plural "Macanese patacas"}],
+   [:MRU {:symbol "MRU",
+          :name "Mauritania Ouguiya",
+          :symbol_native "MRU",
+          :decimal_digits 2,
+          :rounding 0,
+          :code "MRU",
+          :name_plural "Mauritania Ouguiyas"}],
    [:MUR {:symbol "MURs",
           :name "Mauritian Rupee",
           :symbol_native "MURs",
@@ -767,9 +774,9 @@
           :rounding 0,
           :code "TOP",
           :name_plural "Tongan paʻanga"}],
-   [:TRY {:symbol "TL",
+   [:TRY {:symbol "₺",
           :name "Turkish Lira",
-          :symbol_native "TL",
+          :symbol_native "₺",
           :decimal_digits 2,
           :rounding 0,
           :code "TRY",
@@ -873,9 +880,19 @@
           :code "ZMK",
           :name_plural "Zambian kwachas"}]])
 
+(def currency-map
+  "The currencies as a Clojure map. Wrapped in [[delay]] so it's only computed on demand."
+  (delay (into {} currency-list)))
+
+(defn ^:export currency-symbol
+  "Given a currency symbol, as a string or keyword, look it up in the currency
+  map and return the symbol for it as a string."
+  [currency]
+  (some->> currency keyword (get @currency-map) :symbol))
+
 (def ^:export currency
   "Returns the list of currencies supported by Metabase, with associated metadata.
   In Clojure, it is converted to a map for quick lookup of currency symbols during XLSX
   exports. In ClojureScript, it is kept as a 2D array to maintain the order of currencies."
-  #?(:clj (into {} currency-list)
+  #?(:clj  @currency-map
      :cljs (clj->js currency-list)))

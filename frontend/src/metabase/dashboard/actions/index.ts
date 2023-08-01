@@ -7,4 +7,5 @@ export * from "./revisions";
 export * from "./save";
 export * from "./sharing";
 export * from "./ui";
-export * from "./writeback";
+export * from "./actions";
+export * from "./tabs";

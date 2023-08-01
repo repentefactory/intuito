@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import _ from "underscore";
 import { t } from "ttag";
 
@@ -98,6 +97,7 @@ export function nestedSettings(
           objects,
           allComputedSettings,
           extra: { series, settings },
+          ...def.getExtraProps?.(series, settings, onChange, extra),
           ...extra,
         };
       },

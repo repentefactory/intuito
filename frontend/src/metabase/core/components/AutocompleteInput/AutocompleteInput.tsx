@@ -1,18 +1,19 @@
-import React, { useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
+import * as React from "react";
 import TippyPopoverWithTrigger from "metabase/components/PopoverWithTrigger/TippyPopoverWithTrigger";
 import SelectList from "metabase/components/SelectList";
-import TextInput from "metabase/components/TextInput";
-import { TextInputProps } from "metabase/components/TextInput/TextInput";
 
 import { composeEventHandlers } from "metabase/lib/compose-event-handlers";
 import { useListKeyboardNavigation } from "metabase/hooks/use-list-keyboard-navigation";
 
+import Input, { InputProps } from "../Input";
 import { OptionsList } from "./AutocompleteInput.styled";
 
-export interface AutocompleteInputProps extends TextInputProps {
+export interface AutocompleteInputProps extends Omit<InputProps, "onChange"> {
   options?: string[];
   filterOptions?: (value: string | undefined, options: string[]) => string[];
   onOptionSelect?: (value: string) => void;
+  onChange: (value: string) => void;
 }
 
 const filterOptionsByValue = (value: string | undefined, options: string[]) => {
@@ -42,7 +43,7 @@ const AutocompleteInput = ({
   const optionsListRef = useRef<HTMLUListElement>(null);
   const inputRef = useRef<HTMLDivElement>(null);
   const filteredOptions = useMemo(() => {
-    return filterOptions(value, options);
+    return filterOptions(String(value), options);
   }, [value, options, filterOptions]);
 
   const { cursorIndex } = useListKeyboardNavigation({
@@ -66,11 +67,15 @@ const AutocompleteInput = ({
     }
   };
 
+  const handleChange: InputProps["onChange"] = e => {
+    onChange(e.target.value);
+  };
+
   return (
     <TippyPopoverWithTrigger
       sizeToFit
       renderTrigger={({ onClick: handleShowPopover, closePopover }) => (
-        <TextInput
+        <Input
           ref={inputRef}
           role="combobox"
           aria-autocomplete="list"
@@ -78,7 +83,7 @@ const AutocompleteInput = ({
           value={value}
           onClick={handleShowPopover}
           onFocus={handleShowPopover}
-          onChange={composeEventHandlers(onChange, handleShowPopover)}
+          onChange={composeEventHandlers(handleChange, handleShowPopover)}
           onBlur={composeEventHandlers<React.FocusEvent<HTMLInputElement>>(
             onBlur,
             closePopover,
@@ -100,7 +105,7 @@ const AutocompleteInput = ({
                 id={item}
                 name={item}
                 onSelect={item => {
-                  handleOptionSelect(item);
+                  handleOptionSelect(String(item));
                   closePopover();
                 }}
               >
@@ -114,4 +119,5 @@ const AutocompleteInput = ({
   );
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default AutocompleteInput;

@@ -1,19 +1,22 @@
 (ns metabase.api.alert-test
   "Tests for `/api/alert` endpoints."
-  (:require [clojure.test :refer :all]
-            [medley.core :as m]
-            [metabase.email-test :as et]
-            [metabase.http-client :as client]
-            [metabase.models :refer [Card Collection Pulse PulseCard PulseChannel PulseChannelRecipient]]
-            [metabase.models.permissions :as perms]
-            [metabase.models.permissions-group :as perms-group]
-            [metabase.models.pulse :as pulse]
-            [metabase.models.pulse-test :as pulse-test]
-            [metabase.server.middleware.util :as mw.util]
-            [metabase.test :as mt]
-            [metabase.test.mock.util :refer [pulse-channel-defaults]]
-            [metabase.util :as u]
-            [toucan.db :as db]))
+  (:require
+   [clojure.test :refer :all]
+   [medley.core :as m]
+   [metabase.email-test :as et]
+   [metabase.http-client :as client]
+   [metabase.models
+    :refer [Card Collection Pulse PulseCard PulseChannel PulseChannelRecipient]]
+   [metabase.models.permissions :as perms]
+   [metabase.models.permissions-group :as perms-group]
+   [metabase.models.pulse :as pulse]
+   [metabase.models.pulse-test :as pulse-test]
+   [metabase.server.middleware.util :as mw.util]
+   [metabase.test :as mt]
+   [metabase.test.mock.util :refer [pulse-channel-defaults]]
+   [metabase.util :as u]
+   [toucan2.core :as t2]
+   [toucan2.tools.with-temp :as t2.with-temp]))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                              Helper Fns & Macros                                               |
@@ -73,14 +76,14 @@
 
 (defn- do-with-alert-in-collection [f]
   (pulse-test/with-pulse-in-collection [db collection alert card]
-    (assert (db/exists? PulseCard :card_id (u/the-id card), :pulse_id (u/the-id alert)))
+    (assert (t2/exists? PulseCard :card_id (u/the-id card), :pulse_id (u/the-id alert)))
     ;; Make this Alert actually be an alert
-    (db/update! Pulse (u/the-id alert) :alert_condition "rows")
-    (let [alert (db/select-one Pulse :id (u/the-id alert))]
+    (t2/update! Pulse (u/the-id alert) {:alert_condition "rows"})
+    (let [alert (t2/select-one Pulse :id (u/the-id alert))]
       (assert (pulse/is-alert? alert))
       ;; Since Alerts do not actually go in Collections, but rather their Cards do, put the Card in the Collection
-      (db/update! Card (u/the-id card) :collection_id (u/the-id collection))
-      (let [card (db/select-one Card :id (u/the-id card))]
+      (t2/update! Card (u/the-id card) {:collection_id (u/the-id collection)})
+      (let [card (t2/select-one Card :id (u/the-id card))]
         (f db collection alert card)))))
 
 (defmacro ^:private with-alert-in-collection
@@ -106,13 +109,13 @@
   Cards that are. Alerts do not go in Collections; their perms are derived from their Cards.)"
   [grant-collection-perms-fn! alerts-or-ids f]
   (mt/with-non-admin-groups-no-root-collection-perms
-    (mt/with-temp Collection [collection]
+    (t2.with-temp/with-temp [Collection collection]
       (grant-collection-perms-fn! (perms-group/all-users) collection)
       ;; Go ahead and put all the Cards for all of the Alerts in the temp Collection
       (when (seq alerts-or-ids)
-        (doseq [alert (db/select Pulse :id [:in (set (map u/the-id alerts-or-ids))])
+        (doseq [alert (t2/select Pulse :id [:in (set (map u/the-id alerts-or-ids))])
                 :let  [card (#'metabase.models.pulse/alert->card alert)]]
-          (db/update! Card (u/the-id card) :collection_id (u/the-id collection))))
+          (t2/update! Card (u/the-id card) {:collection_id (u/the-id collection)})))
       (f))))
 
 (defmacro ^:private with-alerts-in-readable-collection [alerts-or-ids & body]
@@ -147,8 +150,8 @@
     (is (= #{"Not Archived"}
            (with-alert-in-collection [_ _ not-archived-alert]
              (with-alert-in-collection [_ _ archived-alert]
-               (db/update! Pulse (u/the-id not-archived-alert) :name "Not Archived")
-               (db/update! Pulse (u/the-id archived-alert)     :name "Archived", :archived true)
+               (t2/update! Pulse (u/the-id not-archived-alert) {:name "Not Archived"})
+               (t2/update! Pulse (u/the-id archived-alert)     {:name "Archived", :archived true})
                (with-alerts-in-readable-collection [not-archived-alert archived-alert]
                  (set (map :name (mt/user-http-request :rasta :get 200 "alert")))))))))
 
@@ -156,8 +159,8 @@
     (is (= #{"Archived"}
            (with-alert-in-collection [_ _ not-archived-alert]
              (with-alert-in-collection [_ _ archived-alert]
-               (db/update! Pulse (u/the-id not-archived-alert) :name "Not Archived")
-               (db/update! Pulse (u/the-id archived-alert)     :name "Archived", :archived true)
+               (t2/update! Pulse (u/the-id not-archived-alert) {:name "Not Archived"})
+               (t2/update! Pulse (u/the-id archived-alert)     {:name "Archived", :archived true})
                (with-alerts-in-readable-collection [not-archived-alert archived-alert]
                  (set (map :name (mt/user-http-request :rasta :get 200 "alert?archived=true")))))))))
 
@@ -167,9 +170,9 @@
       (with-alert-in-collection [_ _ recipient-alert]
         (with-alert-in-collection [_ _ other-alert]
           (with-alerts-in-readable-collection [creator-alert recipient-alert other-alert]
-            (db/update! Pulse (u/the-id creator-alert) :name "LuckyCreator" :creator_id (mt/user->id :lucky))
-            (db/update! Pulse (u/the-id recipient-alert) :name "LuckyRecipient")
-            (db/update! Pulse (u/the-id other-alert) :name "Other")
+            (t2/update! Pulse (u/the-id creator-alert) {:name "LuckyCreator" :creator_id (mt/user->id :lucky)})
+            (t2/update! Pulse (u/the-id recipient-alert) {:name "LuckyRecipient"})
+            (t2/update! Pulse (u/the-id other-alert) {:name "Other"})
             (mt/with-temp* [PulseChannel [pulse-channel {:pulse_id (u/the-id recipient-alert)}]
                             PulseChannelRecipient [_ {:pulse_channel_id (u/the-id pulse-channel), :user_id (mt/user->id :lucky)}]]
               (is (= #{"LuckyCreator" "LuckyRecipient"}
@@ -295,8 +298,8 @@
                 (update-in [:channels 0] merge {:schedule_hour 12, :schedule_type "daily", :recipients []}))
             (new-alert-email :rasta {"has any results" true})]
            (mt/with-non-admin-groups-no-root-collection-perms
-             (mt/with-temp Collection [collection]
-               (db/update! Card (u/the-id card) :collection_id (u/the-id collection))
+             (t2.with-temp/with-temp [Collection collection]
+               (t2/update! Card (u/the-id card) {:collection_id (u/the-id collection)})
                (with-alert-setup
                  (perms/grant-collection-read-permissions! (perms-group/all-users) collection)
                  [(et/with-expected-messages 1
@@ -394,20 +397,6 @@
                (et/regex-email-bodies #"https://metabase.com/testmb"
                                       #"meets its goal"
                                       #"My question")))))))
-
-(deftest disallow-creating-alert-with-is-write-card-test
-  (testing "POST /api/alert"
-    (testing "Disallow creating an Alert with a QueryAction is_write Card (#22846)"
-      (mt/with-temp Card [{card-id :id} {:is_write true}]
-        (is (= "You cannot create an Alert for an is_write Card."
-               (mt/user-http-request :crowberto :post 400 "alert"
-                                     {:card             {:id                card-id
-                                                         :include_csv       false
-                                                         :include_xls       false
-                                                         :dashboard_card_id nil}
-                                      :alert_condition  "goal"
-                                      :alert_first_only false
-                                      :channels         [daily-email-channel]})))))))
 
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
@@ -675,7 +664,7 @@
                  (array-map
                   :count-1 (count ((alert-client :rasta) :get 200 (alert-question-url card)))
                   :count-2 (do
-                             (db/delete! PulseChannelRecipient :id (u/the-id pcr))
+                             (t2/delete! PulseChannelRecipient :id (u/the-id pcr))
                              (api:alert-question-count :rasta card)))))))))
 
   (testing "Non-admin users should not see others alerts, admins see all alerts"
@@ -807,7 +796,7 @@
                (with-alert-setup
                  (et/with-expected-messages 1 (api:unsubscribe! :rasta 204 alert))
                  (array-map
-                  :archived? (db/select-one-field :archived Pulse :id (u/the-id alert))
+                  :archived? (t2/select-one-fn :archived Pulse :id (u/the-id alert))
                   :emails    (et/regex-email-bodies #"https://metabase.com/testmb"
                                                     #"Foo"))))))))
 
@@ -824,7 +813,7 @@
                (with-alert-setup
                  (et/with-expected-messages 1 (api:unsubscribe! :rasta 204 alert))
                  (array-map
-                  :archived? (db/select-one-field :archived Pulse :id (u/the-id alert))
+                  :archived? (t2/select-one-fn :archived Pulse :id (u/the-id alert))
                   :emails    (et/regex-email-bodies #"https://metabase.com/testmb"
                                                     #"Foo"))))))))
 
@@ -845,7 +834,7 @@
                    ((alert-client :crowberto)
                     :put 200 (alert-url alert) (assoc-in (default-alert-req card pc-1) [:channels 0 :enabled] false)))
                  (array-map
-                  :archived? (db/select-one-field :archived Pulse :id (u/the-id alert))
+                  :archived? (t2/select-one-fn :archived Pulse :id (u/the-id alert))
                   :emails    (et/regex-email-bodies #"https://metabase.com/testmb"
                                                     #"letting you know that Crowberto Corv"))))))))
 
@@ -866,7 +855,7 @@
                    ((alert-client :crowberto)
                     :put 200 (alert-url alert) (assoc-in (default-alert-req card pc-1) [:channels 0 :enabled] true)))
                  (array-map
-                  :archived? (db/select-one-field :archived Pulse :id (u/the-id alert))
+                  :archived? (t2/select-one-fn :archived Pulse :id (u/the-id alert))
                   :emails    (et/regex-email-bodies #"https://metabase.com/testmb"
                                                     #"now getting alerts about .*Foo")
                   :emails  (et/regex-email-bodies #"https://metabase.com/testmb"

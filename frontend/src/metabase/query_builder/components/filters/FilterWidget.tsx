@@ -1,12 +1,13 @@
-/* eslint-disable react/prop-types */
-import React, { Component } from "react";
+import { Component } from "react";
+
+import * as React from "react";
 
 import Popover from "metabase/components/Popover";
 import FilterComponent from "metabase/query_builder/components/Filter";
 
 import Filter from "metabase-lib/queries/structured/Filter";
 import StructuredQuery from "metabase-lib/queries/StructuredQuery";
-import FilterPopover from "./FilterPopover";
+import { FilterPopover } from "./FilterPopover";
 import {
   FilterField,
   FilterOperator,
@@ -69,13 +70,18 @@ type State = {
   isOpen: boolean;
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default class FilterWidget extends Component<Props, State> {
+  rootRef: React.RefObject<HTMLDivElement>;
+
   constructor(props: Props) {
     super(props);
 
     this.state = {
       isOpen: this.props.filter[0] == null,
     };
+
+    this.rootRef = React.createRef();
   }
 
   static defaultProps = {
@@ -109,6 +115,7 @@ export default class FilterWidget extends Component<Props, State> {
         <Popover
           id="FilterPopover"
           className="FilterPopover"
+          target={this.rootRef.current}
           isInitiallyOpen={this.props.filter[1] === null}
           onClose={this.close}
           horizontalAttachments={["left", "center"]}
@@ -117,10 +124,10 @@ export default class FilterWidget extends Component<Props, State> {
           <FilterPopover
             query={query}
             filter={filter}
-            onChangeFilter={filter =>
-              this.props.updateFilter &&
-              this.props.updateFilter(this.props.index, filter)
-            }
+            onChangeFilter={filter => {
+              this.props.updateFilter?.(this.props.index, filter);
+              this.close();
+            }}
             onClose={this.close}
             isNew={false}
           />
@@ -131,11 +138,11 @@ export default class FilterWidget extends Component<Props, State> {
 
   render() {
     return (
-      <FilterWidgetRoot isSelected={this.state.isOpen}>
+      <FilterWidgetRoot isSelected={this.state.isOpen} ref={this.rootRef}>
         <div className="flex justify-center" onClick={this.open}>
           {this.renderFilter()}
-          {this.renderPopover()}
         </div>
+        {this.renderPopover()}
       </FilterWidgetRoot>
     );
   }

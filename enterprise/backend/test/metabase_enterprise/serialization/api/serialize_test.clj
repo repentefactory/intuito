@@ -1,29 +1,38 @@
 (ns metabase-enterprise.serialization.api.serialize-test
   (:require
+   [clojure.string :as str]
    [clojure.test :refer :all]
    [metabase.models :refer [Card Collection Dashboard DashboardCard]]
    [metabase.public-settings.premium-features-test
     :as premium-features-test]
    [metabase.test :as mt]
    [metabase.util.files :as u.files]
-   [toucan.db :as db]))
+   [toucan2.core :as t2]))
+
+(set! *warn-on-reflection* true)
 
 (defn- do-serialize-data-model [f]
   (premium-features-test/with-premium-features #{:serialization}
-    (mt/with-temp* [Collection    [{collection-id :id}]
+    (mt/with-temp* [Collection    [{collection-id   :id
+                                    collection-eid  :entity_id
+                                    collection-slug :slug}]
                     Dashboard     [{dashboard-id :id} {:collection_id collection-id}]
                     Card          [{card-id :id}      {:collection_id collection-id}]
                     DashboardCard [_                  {:card_id card-id, :dashboard_id dashboard-id}]]
       (testing "Sanity Check"
         (is (integer? collection-id))
         (is (= collection-id
-               (db/select-one-field :collection_id Card :id card-id))))
+               (t2/select-one-fn :collection_id Card :id card-id))))
       (mt/with-temp-dir [dir "serdes-dir"]
-        (f {:collection-id collection-id, :dir dir})))))
+        (f {:collection-id collection-id
+            :collection-filename (if collection-slug
+                                   (str collection-eid "_" collection-slug)
+                                   collection-eid)
+            :dir dir})))))
 
 (deftest serialize-data-model-happy-path-test
   (do-serialize-data-model
-   (fn [{:keys [collection-id dir]}]
+   (fn [{:keys [collection-id collection-filename dir]}]
      (is (= {:status "ok"}
             (mt/user-http-request :crowberto :post 200 "ee/serialization/serialize/data-model"
                                   {:collection_ids [collection-id]
@@ -35,18 +44,22 @@
                  (path-files (apply u.files/get-path dir path-components)))]
          (is (= (map
                  #(.toString (u.files/get-path (System/getProperty "java.io.tmpdir") "serdes-dir" %))
-                 ["Card" "Collection" "Dashboard" "settings.yaml"])
+                 ["collections" "databases" "settings.yaml"])
                 (files)))
          (testing "subdirs"
-           (testing "Card"
+           (testing "cards"
              (is (= 1
-                    (count (files "Card")))))
-           (testing "Collection"
+                    (count (files "collections" collection-filename "cards")))))
+           (testing "collections"
              (is (= 1
-                    (count (files "Collection")))))
-           (testing "Dashboard"
+                    (->> (files "collections")
+                         (remove #{"cards" "dashboards" "timelines"})
+                         ;; TODO: use better IA test data
+                         (remove #(str/ends-with? % "instance_analytics"))
+                         count))))
+           (testing "dashboards"
              (is (= 1
-                    (count (files "Dashboard")))))))))))
+                    (count (files "collections" collection-filename "dashboards")))))))))))
 
 (deftest serialize-data-model-validation-test
   (do-serialize-data-model
@@ -63,7 +76,7 @@
                                                 request))]
        (testing "Require a EE token with the `:serialization` feature"
          (premium-features-test/with-premium-features #{}
-           (is (= "This API endpoint is only enabled if you have a premium token with the :serialization feature."
+           (is (= "Serialization is a paid feature not currently available to your instance. Please upgrade to use it. Learn more at metabase.com/upgrade/"
                   (serialize! :expected-status-code 402)))))
        (testing "Require current user to be a superuser"
          (is (= "You don't have permissions to do that."

@@ -1,21 +1,23 @@
 (ns metabase.query-processor.middleware.results-metadata-test
-  (:require [clojure.string :as str]
-            [clojure.test :refer :all]
-            [metabase.mbql.schema :as mbql.s]
-            [metabase.models :refer [Card Collection Dimension Field]]
-            [metabase.models.permissions :as perms]
-            [metabase.models.permissions-group :as perms-group]
-            [metabase.query-processor :as qp]
-            [metabase.query-processor.util :as qp.util]
-            [metabase.sync.analyze.query-results :as qr]
-            [metabase.test :as mt]
-            [metabase.util :as u]
-            [metabase.util.schema :as su]
-            [schema.core :as s]
-            [toucan.db :as db]))
+  (:require
+   [clojure.string :as str]
+   [clojure.test :refer :all]
+   [metabase.mbql.schema :as mbql.s]
+   [metabase.models :refer [Card Collection Dimension Field]]
+   [metabase.models.permissions :as perms]
+   [metabase.models.permissions-group :as perms-group]
+   [metabase.query-processor :as qp]
+   [metabase.query-processor.util :as qp.util]
+   [metabase.sync.analyze.query-results :as qr]
+   [metabase.test :as mt]
+   [metabase.util :as u]
+   [metabase.util.schema :as su]
+   [schema.core :as s]
+   [toucan2.core :as t2]
+   [toucan2.tools.with-temp :as t2.with-temp]))
 
 (defn- card-metadata [card]
-  (db/select-one-field :result_metadata Card :id (u/the-id card)))
+  (t2/select-one-fn :result_metadata Card :id (u/the-id card)))
 
 (defn- round-to-2-decimals
   "Defaults [[mt/round-all-decimals]] to 2 digits"
@@ -23,7 +25,7 @@
   (mt/round-all-decimals 2 data))
 
 (defn- default-card-results []
-  (let [id->fingerprint   (db/select-id->field :fingerprint Field :table_id (mt/id :venues))
+  (let [id->fingerprint   (t2/select-pk->fn :fingerprint Field :table_id (mt/id :venues))
         name->fingerprint (comp id->fingerprint (partial mt/id :venues))]
     [{:name           "ID"
       :display_name   "ID"
@@ -82,7 +84,7 @@
 
 (deftest save-result-metadata-test
   (testing "test that Card result metadata is saved after running a Card"
-    (mt/with-temp Card [card]
+    (t2.with-temp/with-temp [Card card]
       (let [result (qp/process-userland-query
                     (assoc (mt/native-query {:query "SELECT ID, NAME, PRICE, CATEGORY_ID, LATITUDE, LONGITUDE FROM VENUES"})
                            :info {:card-id    (u/the-id card)
@@ -93,8 +95,8 @@
              (-> card card-metadata round-to-2-decimals)))))
 
   (testing "check that using a Card as your source doesn't overwrite the results metadata..."
-    (mt/with-temp Card [card {:dataset_query   (mt/native-query {:query "SELECT * FROM VENUES"})
-                              :result_metadata [{:name "NAME", :display_name "Name", :base_type :type/Text}]}]
+    (t2.with-temp/with-temp [Card card {:dataset_query   (mt/native-query {:query "SELECT * FROM VENUES"})
+                                        :result_metadata [{:name "NAME", :display_name "Name", :base_type :type/Text}]}]
       (let [result (qp/process-userland-query {:database mbql.s/saved-questions-virtual-database-id
                                                :type     :query
                                                :query    {:source-table (str "card__" (u/the-id card))}})]
@@ -170,7 +172,7 @@
 
 (deftest card-with-datetime-breakout-by-year-test
   (testing "make sure that a Card where a DateTime column is broken out by year works the way we'd expect"
-    (mt/with-temp Card [card]
+    (t2.with-temp/with-temp [Card card]
       (qp/process-userland-query
        {:database (mt/id)
         :type     :query
@@ -179,8 +181,8 @@
                    :breakout     [[:field (mt/id :checkins :date) {:temporal-unit :year}]]}
         :info     {:card-id    (u/the-id card)
                    :query-hash (qp.util/query-hash {})}})
-      (is (= [{:base_type    :type/DateTime
-               :effective_type    :type/DateTime
+      (is (= [{:base_type    :type/Date
+               :effective_type    :type/Date
                :visibility_type :normal
                :coercion_strategy nil
                :display_name "Date"
@@ -225,26 +227,28 @@
     ;; H2 `date_trunc` returns a column of SQL type `NULL` -- so initially the `base_type` will be `:type/*`
     ;; (unknown). However, the `annotate` middleware will scan the values of the column and determine that the column
     ;; is actually a `:type/DateTime`. The query results metadata should come back with the correct type info.
+    ;; PS: the above comment is likely outdated with H2 v2
+    ;; TODO: is this still relevant? -jpc
     (let [results (:data
                    (qp/process-query
                     {:type     :native
                      :native   {:query "select date_trunc('day', checkins.\"DATE\") as d FROM checkins"}
                      :database (mt/id)}))]
       (testing "Sanity check: annotate should infer correct type from `:cols`"
-        (is (= {:base_type    :type/DateTime,
-                :effective_type :type/DateTime
+        (is (= {:base_type    :type/Date,
+                :effective_type :type/Date
                 :display_name "D" :name "D"
                 :source       :native
-                :field_ref    [:field "D" {:base-type :type/DateTime}]}
+                :field_ref    [:field "D" {:base-type :type/Date}]}
                (first (:cols results)))))
 
       (testing "Results metadata should have the same type info")
-      (is (= {:base_type    :type/DateTime
-              :effective_type :type/DateTime
+      (is (= {:base_type    :type/Date
+              :effective_type :type/Date
               :display_name "D"
               :name         "D"
               :semantic_type nil
-              :field_ref    [:field "D" {:base-type :type/DateTime}]}
+              :field_ref    [:field "D" {:base-type :type/Date}]}
              (-> results :results_metadata :columns first (dissoc :fingerprint)))))))
 
 (deftest results-metadata-should-have-field-refs-test
@@ -262,11 +266,11 @@
         (do-test)
         (testing "With an FK column remapping"
           ;; Add column remapping from Orders Product ID -> Products.Title
-          (mt/with-temp Dimension [_ (mt/$ids orders
-                                       {:field_id                %product_id
-                                        :name                    "Product ID"
-                                        :type                    :external
-                                        :human_readable_field_id %products.title})]
+          (t2.with-temp/with-temp [Dimension _ (mt/$ids orders
+                                                 {:field_id                %product_id
+                                                  :name                    "Product ID"
+                                                  :type                    :external
+                                                  :human_readable_field_id %products.title})]
             (do-test)))))))
 
 (deftest field-refs-should-be-correct-fk-forms-test

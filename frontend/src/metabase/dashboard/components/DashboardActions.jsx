@@ -1,12 +1,10 @@
-/* eslint-disable react/no-string-refs */
-import React from "react";
 import { t } from "ttag";
 import cx from "classnames";
 
 import MetabaseSettings from "metabase/lib/settings";
 import NightModeIcon from "metabase/components/icons/NightModeIcon";
 import RefreshWidget from "metabase/dashboard/components/RefreshWidget";
-import Tooltip from "metabase/components/Tooltip";
+import Tooltip from "metabase/core/components/Tooltip";
 import FullscreenIcon from "metabase/components/icons/FullscreenIcon";
 
 import { DashboardHeaderButton } from "metabase/dashboard/containers/DashboardHeader.styled";
@@ -32,10 +30,6 @@ export const getDashboardActions = (
     hasNightModeToggle,
   },
 ) => {
-  if (dashboard?.is_app_page) {
-    return [];
-  }
-
   const isPublicLinksEnabled = MetabaseSettings.get("enable-public-sharing");
   const isEmbeddingEnabled = MetabaseSettings.get("enable-embedding");
 
@@ -61,6 +55,7 @@ export const getDashboardActions = (
             icon="subscription"
             disabled={!canManageSubscriptions}
             onClick={onSharingClick}
+            aria-label="subscriptions"
             data-metabase-event="Dashboard;Subscriptions"
           />
         </Tooltip>,

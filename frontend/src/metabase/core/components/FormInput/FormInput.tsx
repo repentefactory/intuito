@@ -1,10 +1,4 @@
-import React, {
-  ChangeEvent,
-  forwardRef,
-  ReactNode,
-  Ref,
-  useCallback,
-} from "react";
+import { ChangeEvent, forwardRef, ReactNode, Ref, useCallback } from "react";
 import { useField } from "formik";
 import { useUniqueId } from "metabase/hooks/use-unique-id";
 import Input, { InputProps } from "metabase/core/components/Input";
@@ -17,8 +11,11 @@ export interface FormInputProps
   > {
   name: string;
   title?: string;
+  actions?: ReactNode;
   description?: ReactNode;
+  infoTooltip?: string;
   nullable?: boolean;
+  optional?: boolean;
 }
 
 const FormInput = forwardRef(function FormInput(
@@ -27,8 +24,11 @@ const FormInput = forwardRef(function FormInput(
     className,
     style,
     title,
+    actions,
     description,
+    infoTooltip,
     nullable,
+    optional,
     ...props
   }: FormInputProps,
   ref: Ref<HTMLDivElement>,
@@ -49,11 +49,15 @@ const FormInput = forwardRef(function FormInput(
       className={className}
       style={style}
       title={title}
+      actions={actions}
       description={description}
+      infoTooltip={infoTooltip}
       htmlFor={id}
       error={touched ? error : undefined}
+      optional={optional}
     >
       <Input
+        size="large"
         {...props}
         id={id}
         name={name}
@@ -67,4 +71,5 @@ const FormInput = forwardRef(function FormInput(
   );
 });
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default FormInput;

@@ -1,8 +1,8 @@
-import React from "react";
 import { t } from "ttag";
 
 import type { Card } from "metabase-types/api";
 import type Question from "metabase-lib/Question";
+import * as ML_Urls from "metabase-lib/urls";
 import type Table from "metabase-lib/metadata/Table";
 
 import ModelRelationships from "./ModelRelationships";
@@ -39,20 +39,28 @@ function ModelInfoSidePanel({ model, mainTable, onChangeDescription }: Props) {
           isOptional
           isMultiline
           isDisabled={!canWrite}
+          aria-label={t`Description`}
           onChange={onChangeDescription}
         />
       </ModelInfoSection>
-      <ModelRelationships model={model} mainTable={mainTable} />
+      {!model.isNative() && (
+        <ModelRelationships model={model} mainTable={mainTable} />
+      )}
       {modelCard.creator && (
         <ModelInfoSection>
-          <ModelInfoTitle>{t`Contact`}</ModelInfoTitle>
-          <ModelInfoText>{modelCard.creator.common_name}</ModelInfoText>
+          <ModelInfoTitle>{t`Created by`}</ModelInfoTitle>
+          <ModelInfoText aria-label={t`Created by`}>
+            {modelCard.creator.common_name}
+          </ModelInfoText>
         </ModelInfoSection>
       )}
       {mainTable && (
         <ModelInfoSection>
           <ModelInfoTitle>{t`Backing table`}</ModelInfoTitle>
-          <ModelInfoLink to={mainTable.newQuestion().getUrl({ clean: false })}>
+          <ModelInfoLink
+            to={ML_Urls.getUrl(mainTable.newQuestion(), { clean: false })}
+            aria-label={t`Backing table`}
+          >
             {mainTable.displayName()}
           </ModelInfoLink>
         </ModelInfoSection>
@@ -61,4 +69,5 @@ function ModelInfoSidePanel({ model, mainTable, onChangeDescription }: Props) {
   );
 }
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default ModelInfoSidePanel;

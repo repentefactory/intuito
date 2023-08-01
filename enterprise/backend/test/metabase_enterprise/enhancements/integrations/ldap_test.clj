@@ -1,17 +1,19 @@
 (ns metabase-enterprise.enhancements.integrations.ldap-test
-  (:require [clojure.test :refer :all]
-            [metabase-enterprise.enhancements.integrations.ldap :as ldap-ee]
-            [metabase.integrations.ldap :as ldap]
-            [metabase.models.user :as user :refer [User]]
-            [metabase.public-settings.premium-features :as premium-features]
-            [metabase.test :as mt]
-            [metabase.test.integrations.ldap :as ldap.test]
-            [metabase.util.schema :as su]
-            [schema.core :as s]
-            [toucan.db :as db]))
+  (:require
+   [clojure.test :refer :all]
+   [metabase-enterprise.enhancements.integrations.ldap :as ldap-ee]
+   [metabase.integrations.ldap :as ldap]
+   [metabase.models.user :as user :refer [User]]
+   [metabase.public-settings.premium-features-test
+    :as premium-features-test]
+   [metabase.test :as mt]
+   [metabase.test.integrations.ldap :as ldap.test]
+   [metabase.util.schema :as su]
+   [schema.core :as s]
+   [toucan2.core :as t2]))
 
 (deftest find-test
-  (with-redefs [#_{:clj-kondo/ignore [:deprecated-var]} premium-features/enable-enhancements? (constantly true)]
+  (premium-features-test/with-premium-features #{:sso-ldap}
     (ldap.test/with-ldap-server
       (testing "find by username"
         (is (= {:dn         "cn=John Smith,ou=People,dc=metabase,dc=com"
@@ -91,7 +93,7 @@
                  (ldap/find-user "sally.brown@metabase.com"))))))))
 
 (deftest attribute-sync-test
-  (with-redefs [#_{:clj-kondo/ignore [:deprecated-var]} premium-features/enable-enhancements? (constantly true)]
+  (premium-features-test/with-premium-features #{:sso-ldap}
     (ldap.test/with-ldap-server
       (testing "find by email/username should return other attributes as well"
         (is (= {:dn         "cn=Lucky Pigeon,ou=Birds,dc=metabase,dc=com"
@@ -144,10 +146,10 @@
                                      "sn"        "Smith"
                                      "cn"        "John Smith"}
                   :common_name      "John Smith"}
-                 (into {} (db/select-one [User :first_name :last_name :email :login_attributes]
+                 (into {} (t2/select-one [User :first_name :last_name :email :login_attributes]
                                          :email "john.smith@metabase.com"))))
           (finally
-            (db/delete! User :%lower.email "john.smith@metabase.com"))))
+            (t2/delete! User :%lower.email "john.smith@metabase.com"))))
 
       (testing "when creating a new user and attribute sync is disabled, attributes should not be synced"
         (mt/with-temporary-setting-values [ldap-sync-user-attributes false]
@@ -158,13 +160,13 @@
                     :email            "john.smith@metabase.com"
                     :login_attributes nil
                     :common_name      "John Smith"}
-                   (into {} (db/select-one [User :first_name :last_name :email :login_attributes]
+                   (into {} (t2/select-one [User :first_name :last_name :email :login_attributes]
                                            :email "john.smith@metabase.com"))))
             (finally
-              (db/delete! User :%lower.email "john.smith@metabase.com"))))))))
+              (t2/delete! User :%lower.email "john.smith@metabase.com"))))))))
 
 (deftest update-attributes-on-login-test
-  (with-redefs [#_{:clj-kondo/ignore [:deprecated-var]} premium-features/enable-enhancements? (constantly true)]
+  (premium-features-test/with-premium-features #{:sso-ldap}
     (ldap.test/with-ldap-server
       (testing "Existing user's attributes are updated on fetch"
         (try
@@ -186,10 +188,10 @@
                                        "sn"           "Smith"
                                        "cn"           "John Smith"
                                        "unladenspeed" 100}}
-                   (into {} (db/select-one [User :first_name :last_name :email :login_attributes]
+                   (into {} (t2/select-one [User :first_name :last_name :email :login_attributes]
                                            :email "john.smith@metabase.com")))))
           (finally
-            (db/delete! User :%lower.email "john.smith@metabase.com"))))
+            (t2/delete! User :%lower.email "john.smith@metabase.com"))))
 
       (testing "Existing user's attributes are not updated on fetch, when attribute sync is disabled"
         (try
@@ -207,13 +209,13 @@
                       :common_name      "John Smith"
                       :email            "john.smith@metabase.com"
                       :login_attributes nil}
-                     (into {} (db/select-one [User :first_name :last_name :email :login_attributes]
+                     (into {} (t2/select-one [User :first_name :last_name :email :login_attributes]
                                              :email "john.smith@metabase.com"))))))
           (finally
-            (db/delete! User :%lower.email "john.smith@metabase.com")))))))
+            (t2/delete! User :%lower.email "john.smith@metabase.com")))))))
 
 (deftest fetch-or-create-user-test
-  (with-redefs [#_{:clj-kondo/ignore [:deprecated-var]} premium-features/enable-enhancements? (constantly true)]
+  (premium-features-test/with-premium-features #{:sso-ldap}
     (ldap.test/with-ldap-server
       (testing "a new user is created when they don't already exist"
         (try
@@ -222,8 +224,8 @@
                  :last_name        "Smith"
                  :common_name      "John Smith"
                  :email            "john.smith@metabase.com"}
-                (into {} (db/select-one [User :first_name :last_name :email] :email "john.smith@metabase.com"))))
-         (finally (db/delete! User :email "john.smith@metabase.com"))))
+                (into {} (t2/select-one [User :first_name :last_name :email] :email "john.smith@metabase.com"))))
+         (finally (t2/delete! User :email "john.smith@metabase.com"))))
 
       (try
        (testing "a user without a givenName attribute has `nil` for that attribute"
@@ -231,19 +233,19 @@
          (is (= {:first_name       nil
                  :last_name        "Miller"
                  :common_name      "Miller"}
-                (into {} (db/select-one [User :first_name :last_name] :email "jane.miller@metabase.com")))))
+                (into {} (t2/select-one [User :first_name :last_name] :email "jane.miller@metabase.com")))))
 
        (testing "when givenName or sn attributes change in LDAP, they are updated in Metabase on next login"
          (ldap/fetch-or-create-user! (assoc (ldap/find-user "jmiller") :first-name "Jane" :last-name "Doe"))
          (is (= {:first_name       "Jane"
                  :last_name        "Doe"
                  :common_name      "Jane Doe"}
-                (into {} (db/select-one [User :first_name :last_name] :email "jane.miller@metabase.com")))))
+                (into {} (t2/select-one [User :first_name :last_name] :email "jane.miller@metabase.com")))))
 
        (testing "if givenName or sn attributes are removed, values stored in Metabase are updated to `nil` to respect the IdP response."
          (ldap/fetch-or-create-user! (assoc (ldap/find-user "jmiller") :first-name nil :last-name nil))
          (is (= {:first_name       nil
                  :last_name        nil
                  :common_name      "jane.miller@metabase.com"}
-                (select-keys (db/select-one User :email "jane.miller@metabase.com") [:first_name :last_name :common_name]))))
-       (finally (db/delete! User :email "jane.miller@metabase.com"))))))
+                (select-keys (t2/select-one User :email "jane.miller@metabase.com") [:first_name :last_name :common_name]))))
+       (finally (t2/delete! User :email "jane.miller@metabase.com"))))))

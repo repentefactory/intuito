@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import PropTypes from "prop-types";
 import _ from "underscore";
 import { connect } from "react-redux";
 import { t } from "ttag";
 
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 import Breadcrumbs from "metabase/components/Breadcrumbs";
 import { entityObjectLoader } from "metabase/entities/containers/EntityObjectLoader";
 import { entityListLoader } from "metabase/entities/containers/EntityListLoader";
@@ -49,19 +49,20 @@ function QuestionPicker({
   const collection = collectionsById[currentCollectionId];
   const crumbs = getCrumbs(collection, collectionsById, setCurrentCollectionId);
 
-  const handleSearchTextChange = value => setSearchText(value);
+  const handleSearchTextChange = e => setSearchText(e.target.value);
 
   const collections = (collection && collection.children) || [];
 
   return (
     <QuestionPickerRoot>
       <SearchInput
+        fullWidth
         autoFocus
-        hasClearButton
         placeholder={t`Search…`}
         value={searchText}
-        onChange={handleSearchTextChange}
         icon={<Icon name="search" size={16} />}
+        onResetClick={() => setSearchText("")}
+        onChange={handleSearchTextChange}
       />
 
       {!debouncedSearchText && (

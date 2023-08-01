@@ -12,11 +12,12 @@
 
   TODO - this namespace name really doesn't make a lot of sense. How about `metabase.test.driver` or something like
   that?"
-  (:require [clojure.test :as t]
-            [colorize.core :as colorize]
-            [metabase.driver :as driver]
-            [metabase.test.data.env :as tx.env]
-            [metabase.test.data.interface :as tx]))
+  (:require
+   [clojure.test :as t]
+   [colorize.core :as colorize]
+   [metabase.driver :as driver]
+   [metabase.test.data.env :as tx.env]
+   [metabase.test.data.interface :as tx]))
 
 (defn do-when-testing-driver
   "Call function `f` (always with no arguments) *only* if we are currently testing against `driver` (i.e., if `driver`
@@ -25,8 +26,9 @@
   (This does NOT bind `*driver*`; use `driver/with-driver` if you want to do that.)"
   {:style/indent 1}
   [driver f]
+  {:pre [(keyword? driver)]}
   (when (contains? (tx.env/test-drivers) driver)
-    (f)))
+   (f)))
 
 (defmacro when-testing-driver
   "Execute `body` only if we're currently testing against `driver`.

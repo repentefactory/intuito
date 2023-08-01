@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -46,10 +45,13 @@ describe("TimelinePanel", () => {
 
 const getProps = (opts?: Partial<TimelinePanelProps>): TimelinePanelProps => ({
   timelines: [],
+  visibleEventIds: [],
   collection: createMockCollection(),
   onNewEvent: jest.fn(),
   onEditEvent: jest.fn(),
   onArchiveEvent: jest.fn(),
-  onToggleTimeline: jest.fn(),
+  onShowTimelineEvents: jest.fn(),
+  onHideTimelineEvents: jest.fn(),
+
   ...opts,
 });

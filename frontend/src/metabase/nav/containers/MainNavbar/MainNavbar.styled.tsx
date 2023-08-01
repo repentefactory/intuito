@@ -1,15 +1,13 @@
 import styled from "@emotion/styled";
 import { css } from "@emotion/react";
 
-import Button from "metabase/core/components/Button";
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 import { NAV_SIDEBAR_WIDTH } from "metabase/nav/constants";
 
 import { color, lighten } from "metabase/lib/colors";
 import {
   breakpointMaxSmall,
   breakpointMinSmall,
-  breakpointMinLarge,
   space,
 } from "metabase/styled-components/theme";
 import { SidebarLink } from "./SidebarItems";
@@ -117,6 +115,16 @@ export const CollectionMenuList = styled.ul`
 `;
 
 export const LoadingContainer = styled.div`
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+`;
+
+export const LoadingContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   color: ${color("brand")};
   text-align: center;
 `;
@@ -137,6 +145,9 @@ export const AddYourOwnDataLink = styled(SidebarLink)`
   color: ${color("white")};
   margin: ${space(1)};
   padding: 2px 6px;
+  svg {
+    color: ${color("brand-light")};
+  }
   transition: background-color 0.3s linear;
 
   @media (prefers-reduced-motion) {
@@ -152,52 +163,3 @@ export const AddYourOwnDataLink = styled(SidebarLink)`
     }
   }
 `;
-
-export const ExitDataAppButton = styled(Button)`
-  margin-left: ${space(2)};
-`;
-
-export const DataAppActionsContainer = styled(SidebarSection)`
-  display: flex;
-  align-items: center;
-`;
-
-export const DataAppActionButton = styled(Button)`
-  padding: 0.6rem 1rem;
-
-  ${breakpointMinLarge} {
-    & {
-      padding: 0.85rem 1rem;
-    }
-  }
-`;
-
-DataAppActionButton.defaultProps = {
-  onlyIcon: true,
-};
-
-const ActionGroupCell = styled.div``;
-
-const _ActionGroup = styled.div`
-  display: flex;
-
-  ${ActionGroupCell} {
-    border: 1px solid ${color("border")};
-
-    &:not(:last-of-type) {
-      border-right-width: 0.5px;
-      border-top-left-radius: 8px;
-      border-bottom-left-radius: 8px;
-    }
-
-    &:not(:first-of-type) {
-      border-left-width: 0.5px;
-      border-top-right-radius: 8px;
-      border-bottom-right-radius: 8px;
-    }
-  }
-`;
-
-export const ActionGroup = Object.assign(_ActionGroup, {
-  Cell: ActionGroupCell,
-});

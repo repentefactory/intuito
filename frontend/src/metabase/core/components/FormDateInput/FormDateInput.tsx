@@ -1,4 +1,4 @@
-import React, { forwardRef, ReactNode, Ref, useCallback, useMemo } from "react";
+import { forwardRef, ReactNode, Ref, useCallback, useMemo } from "react";
 import moment, { Moment } from "moment-timezone";
 import { useField } from "formik";
 import { useUniqueId } from "metabase/hooks/use-unique-id";
@@ -16,6 +16,7 @@ export interface FormDateInputProps
   title?: string;
   description?: ReactNode;
   nullable?: boolean;
+  optional?: boolean;
 }
 
 const FormDateInput = forwardRef(function FormDateInput(
@@ -26,6 +27,7 @@ const FormDateInput = forwardRef(function FormDateInput(
     title,
     description,
     nullable,
+    optional,
     ...props
   }: FormDateInputProps,
   ref: Ref<HTMLDivElement>,
@@ -57,6 +59,7 @@ const FormDateInput = forwardRef(function FormDateInput(
       description={description}
       htmlFor={id}
       error={touched ? error : undefined}
+      optional={optional}
     >
       <DateWidget
         {...props}
@@ -72,4 +75,5 @@ const FormDateInput = forwardRef(function FormDateInput(
   );
 });
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default FormDateInput;

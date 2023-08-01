@@ -1,18 +1,22 @@
 (ns metabase.api.geojson
-  (:require [clj-http.client :as http]
-            [clojure.java.io :as io]
-            [compojure.core :refer [GET]]
-            [metabase.api.common :as api]
-            [metabase.api.common.validation :as validation]
-            [metabase.models.setting :as setting :refer [defsetting]]
-            [metabase.util.i18n :refer [deferred-tru tru]]
-            [metabase.util.schema :as su]
-            [ring.util.codec :as codec]
-            [ring.util.response :as response]
-            [schema.core :as s])
-  (:import java.io.BufferedReader
-           [java.net InetAddress URL]
-           org.apache.commons.io.input.ReaderInputStream))
+  (:require
+   [clj-http.client :as http]
+   [clojure.java.io :as io]
+   [compojure.core :refer [GET]]
+   [metabase.api.common :as api]
+   [metabase.api.common.validation :as validation]
+   [metabase.models.setting :as setting :refer [defsetting]]
+   [metabase.util.i18n :refer [deferred-tru tru]]
+   [metabase.util.schema :as su]
+   [ring.util.codec :as codec]
+   [ring.util.response :as response]
+   [schema.core :as s])
+  (:import
+   (java.io BufferedReader)
+   (java.net InetAddress URL)
+   (org.apache.commons.io.input ReaderInputStream)))
+
+(set! *warn-on-reflection* true)
 
 (defsetting custom-geojson-enabled
   (deferred-tru "Whether or not the use of custom GeoJSON is enabled.")
@@ -103,18 +107,23 @@
                (setting/set-value-of-type! :json :custom-geojson new-value)))
   :visibility :public)
 
+(def ^:private connection-timeout-ms 8000)
+
 (defn- read-url-and-respond
   "Reads the provided URL and responds with the contents as a stream."
   [url respond]
   (with-open [^BufferedReader reader (if-let [resource (io/resource url)]
                                        (io/reader resource)
-                                       (:body (http/get url {:as                :reader
-                                                             :redirect-strategy :none})))
+                                       (:body (http/get url {:as                 :reader
+                                                             :redirect-strategy  :none
+                                                             :socket-timeout     connection-timeout-ms
+                                                             :connection-timeout connection-timeout-ms})))
               is                     (ReaderInputStream. reader)]
     (respond (-> (response/response is)
                  (response/content-type "application/json")))))
 
-(api/defendpoint-async GET "/:key"
+#_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-async-schema GET "/:key"
   "Fetch a custom GeoJSON file as defined in the `custom-geojson` setting. (This just acts as a simple proxy for the
   file specified for `key`)."
   [{{:keys [key]} :params} respond raise]
@@ -128,7 +137,8 @@
         (raise (ex-info (tru "GeoJSON URL failed to load") {:status-code 400}))))
     (raise (ex-info (tru "Invalid custom GeoJSON key: {0}" key) {:status-code 400}))))
 
-(api/defendpoint-async GET "/"
+#_{:clj-kondo/ignore [:deprecated-var]}
+(api/defendpoint-async-schema GET "/"
   "Load a custom GeoJSON file based on a URL or file path provided as a query parameter.
   This behaves similarly to /api/geojson/:key but doesn't require the custom map to be saved to the DB first."
   [{{:keys [url]} :params} respond raise]

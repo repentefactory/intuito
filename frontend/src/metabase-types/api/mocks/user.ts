@@ -1,10 +1,11 @@
-import { User } from "metabase-types/api";
+import { User, UserInfo, UserListResult } from "metabase-types/api";
 
 export const createMockUser = (opts?: Partial<User>): User => ({
   id: 1,
   first_name: "Testy",
   last_name: "Tableton",
   common_name: `Testy Tableton`,
+  custom_homepage: null,
   email: "user@metabase.test",
   locale: null,
   google_auth: false,
@@ -18,6 +19,30 @@ export const createMockUser = (opts?: Partial<User>): User => ({
   personal_collection_id: 1,
   date_joined: new Date().toISOString(),
   first_login: new Date().toISOString(),
+  last_login: new Date().toISOString(),
+  ...opts,
+});
+
+export const createMockerUserListResult = (
+  opts?: Partial<UserListResult>,
+): UserListResult => ({
+  id: 1,
+  first_name: "Testy",
+  last_name: "Tableton",
+  common_name: "Testy Tableton",
+  email: "user@metabase.test",
+  ...opts,
+});
+
+export const createMockUserInfo = (opts?: Partial<UserInfo>): UserInfo => ({
+  id: 1,
+  first_name: "Testy",
+  last_name: "Tableton",
+  common_name: `Testy Tableton`,
+  email: "user@metabase.test",
+  is_qbnewb: false,
+  is_superuser: false,
+  date_joined: new Date().toISOString(),
   last_login: new Date().toISOString(),
   ...opts,
 });

@@ -3,16 +3,17 @@
    This is significantly more expensive than the basic sync-metadata step, and involves things
    like running MBQL queries and fetching values to do things like determine Table row counts
    and infer field semantic types."
-  (:require [clojure.tools.logging :as log]
-            [metabase.models.field :refer [Field]]
-            [metabase.sync.analyze.classify :as classify]
-            [metabase.sync.analyze.fingerprint :as fingerprint]
-            [metabase.sync.interface :as i]
-            [metabase.sync.util :as sync-util]
-            [metabase.util :as u]
-            [metabase.util.i18n :refer [trs]]
-            [schema.core :as s]
-            [toucan.db :as db]))
+  (:require
+   [metabase.models.field :refer [Field]]
+   [metabase.sync.analyze.classify :as classify]
+   [metabase.sync.analyze.fingerprint :as fingerprint]
+   [metabase.sync.interface :as i]
+   [metabase.sync.util :as sync-util]
+   [metabase.util :as u]
+   [metabase.util.i18n :refer [trs]]
+   [metabase.util.log :as log]
+   [schema.core :as s]
+   [toucan2.core :as t2]))
 
 ;; How does analysis decide which Fields should get analyzed?
 ;;
@@ -56,10 +57,10 @@
   [tables :- [i/TableInstance]]
   (when-let [ids (seq (map u/the-id tables))]
     ;; The WHERE portion of this query should match up with that of `classify/fields-to-classify`
-    (db/update-where! Field {:table_id            [:in ids]
-                             :fingerprint_version i/latest-fingerprint-version
-                             :last_analyzed       nil}
-      :last_analyzed :%now)))
+    (t2/update! Field {:table_id            [:in ids]
+                       :fingerprint_version i/latest-fingerprint-version
+                       :last_analyzed       nil}
+                {:last_analyzed :%now})))
 
 (s/defn ^:private update-fields-last-analyzed!
   "Update the `last_analyzed` date for all the recently re-fingerprinted/re-classified Fields in TABLE."
@@ -99,7 +100,7 @@
   (trs "Total number of tables classified {0}, {1} updated"
        total-tables tables-classified))
 
-(defn ^:private make-analyze-steps [tables log-fn]
+(defn- make-analyze-steps [tables log-fn]
   [(sync-util/create-sync-step "fingerprint-fields"
                                #(fingerprint/fingerprint-fields-for-db! % tables log-fn)
                                fingerprint-fields-summary)

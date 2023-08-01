@@ -1,7 +1,7 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { t } from "ttag";
 
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 import ModalContent from "metabase/components/ModalContent";
 import ModalWithTrigger from "metabase/components/ModalWithTrigger";
 
@@ -9,7 +9,6 @@ import Dashboards from "metabase/entities/dashboards";
 import Questions from "metabase/entities/questions";
 
 import DashboardPicker from "metabase/containers/DashboardPicker";
-import DataAppPagePicker from "metabase/containers/DataAppPagePicker";
 import QuestionPicker from "metabase/containers/QuestionPicker";
 
 import ClickMappings, {
@@ -20,12 +19,11 @@ import type {
   Dashboard,
   DashboardId,
   DashboardOrderedCard,
-  Card,
   CardId,
   ClickBehavior,
   EntityCustomDestinationClickBehavior,
-  CustomDestinationClickBehaviorEntity,
 } from "metabase-types/api";
+import Question from "metabase-lib/Question";
 
 import { SidebarItem } from "../SidebarItem";
 import { Heading } from "../ClickBehaviorSidebar.styled";
@@ -39,23 +37,16 @@ const LINK_TARGETS = {
   question: {
     Entity: Questions,
     PickerComponent: QuestionPicker,
-    pickerIcon: "bar",
+    pickerIcon: "bar" as const,
     getModalTitle: () => t`Pick a question to link to`,
     getPickerButtonLabel: () => t`Pick a question…`,
   },
   dashboard: {
     Entity: Dashboards,
     PickerComponent: DashboardPicker,
-    pickerIcon: "dashboard",
+    pickerIcon: "dashboard" as const,
     getModalTitle: () => t`Pick a dashboard to link to`,
     getPickerButtonLabel: () => t`Pick a dashboard…`,
-  },
-  page: {
-    Entity: Dashboards,
-    PickerComponent: DataAppPagePicker,
-    pickerIcon: "document",
-    getModalTitle: () => t`Pick a page to link to`,
-    getPickerButtonLabel: () => t`Pick a page…`,
   },
 };
 
@@ -91,7 +82,7 @@ function PickerControl({
   );
 }
 
-function getTargetClickMappingsHeading(entity: Card | Dashboard) {
+function getTargetClickMappingsHeading(entity: Question | Dashboard) {
   return {
     dashboard: t`Pass values to this dashboard's filters (optional)`,
     native: t`Pass values to this question's variables (optional)`,
@@ -113,7 +104,7 @@ function TargetClickMappings({
   const Entity = isDash ? Dashboards : Questions;
   return (
     <Entity.Loader id={clickBehavior.targetId}>
-      {({ object }: { object: Card | Dashboard }) => (
+      {({ object }: { object: Question | Dashboard }) => (
         <div className="pt1">
           <Heading>{getTargetClickMappingsHeading(object)}</Heading>
           <ClickMappings
@@ -181,7 +172,7 @@ function LinkedEntityPicker({
           {({ onClose }: { onClose: () => void }) => (
             <ModalContent
               title={getModalTitle()}
-              onClose={hasSelectedTarget ? onClose : null}
+              onClose={hasSelectedTarget ? onClose : undefined}
             >
               {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
               {/* @ts-ignore */}
@@ -198,7 +189,7 @@ function LinkedEntityPicker({
       </div>
       {hasSelectedTarget && (
         <TargetClickMappings
-          isDash={linkType === "dashboard" || linkType === "page"}
+          isDash={linkType === "dashboard"}
           clickBehavior={clickBehavior}
           dashcard={dashcard}
           updateSettings={updateSettings}
@@ -208,4 +199,5 @@ function LinkedEntityPicker({
   );
 }
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default LinkedEntityPicker;

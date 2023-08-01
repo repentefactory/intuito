@@ -1,13 +1,14 @@
 (ns metabase.cmd.env-var-dox
   "Code to generate docs for environment variables. You can generate
   docs by running: `clojure -M:ee:run environment-variables-documentation`"
-  (:require [clojure.java.classpath :as classpath]
-            [clojure.java.io :as io]
-            [clojure.string :as str]
-            [clojure.tools.namespace.find :as ns.find]
-            [clojure.tools.reader.edn :as edn]
-            [metabase.models.setting :as setting]
-            [metabase.util :as u]))
+  (:require
+   [clojure.java.classpath :as classpath]
+   [clojure.java.io :as io]
+   [clojure.string :as str]
+   [clojure.tools.namespace.find :as ns.find]
+   [clojure.tools.reader.edn :as edn]
+   [metabase.models.setting :as setting]
+   [metabase.util :as u]))
 
 (def env-vars-not-to-mess-with
   "Flamber advises that people avoid touching these environment variables."
@@ -49,7 +50,7 @@
 (defn- format-prefix
   "Used to build an environment variable."
   [env-var]
-  (str "MB_" (u/screaming-snake-case (name (:name env-var)))))
+  (str "MB_" (u/->SCREAMING_SNAKE_CASE_EN (name (:name env-var)))))
 
 (defn- format-heading
   "Takes an integer and a string and creates a Markdown heading of level n."

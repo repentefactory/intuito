@@ -1,16 +1,18 @@
 (ns metabase-enterprise.advanced-permissions.models.permissions-test
-  (:require [clojure.test :refer :all]
-            [metabase-enterprise.advanced-permissions.models.permissions :as ee-perms]
-            [metabase.driver :as driver]
-            [metabase.models :refer [Database Permissions PermissionsGroup]]
-            [metabase.models.database :as database]
-            [metabase.models.permissions :as perms]
-            [metabase.models.permissions-group :as perms-group]
-            [metabase.public-settings.premium-features-test :as premium-features-test]
-            [metabase.sync.sync-metadata.tables :as sync-tables]
-            [metabase.test :as mt]
-            [metabase.util :as u]
-            [toucan.db :as db]))
+  (:require
+   [clojure.test :refer :all]
+   [metabase-enterprise.advanced-permissions.models.permissions :as ee-perms]
+   [metabase.driver :as driver]
+   [metabase.models :refer [Database Permissions PermissionsGroup]]
+   [metabase.models.database :as database]
+   [metabase.models.permissions :as perms]
+   [metabase.models.permissions-group :as perms-group]
+   [metabase.public-settings.premium-features-test :as premium-features-test]
+   [metabase.sync.sync-metadata.tables :as sync-tables]
+   [metabase.test :as mt]
+   [metabase.util :as u]
+   [toucan2.core :as t2]
+   [toucan2.tools.with-temp :as t2.with-temp]))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                          Download permissions                                                  |
@@ -21,7 +23,7 @@
 
 (deftest update-db-download-permissions-test
   (mt/with-model-cleanup [Permissions]
-    (mt/with-temp PermissionsGroup [{group-id :id}]
+    (t2.with-temp/with-temp [PermissionsGroup {group-id :id}]
       (premium-features-test/with-premium-features #{:advanced-permissions}
         (testing "Download perms for all schemas can be set and revoked"
           (ee-perms/update-db-download-permissions! group-id (mt/id) {:schemas :full})
@@ -134,7 +136,7 @@
 
       (testing "If a group has granular download perms for a DB, native download perms are removed when a new table is
               found during sync, since the new table has no download perms"
-        (let [table-ids (db/select-ids 'Table :db_id db-id)
+        (let [table-ids (t2/select-pks-set 'Table :db_id db-id)
               limited-downloads-id  (apply min table-ids)
               graph {:schemas {"PUBLIC"
                                (-> (into {} (for [id table-ids] [id :full]))
@@ -162,7 +164,7 @@
 
 (deftest update-db-data-model-permissions-test
   (mt/with-model-cleanup [Permissions]
-    (mt/with-temp PermissionsGroup [{group-id :id}]
+    (t2.with-temp/with-temp [PermissionsGroup {group-id :id}]
       (premium-features-test/with-premium-features #{:advanced-permissions}
         (testing "Data model perms for an entire DB can be set and revoked"
           (ee-perms/update-db-data-model-permissions! group-id (mt/id) {:schemas :all})
@@ -217,7 +219,7 @@
 
 (deftest update-db-details-permissions-test
   (mt/with-model-cleanup [Permissions]
-    (mt/with-temp PermissionsGroup [{group-id :id}]
+    (t2.with-temp/with-temp [PermissionsGroup {group-id :id}]
       (premium-features-test/with-premium-features #{:advanced-permissions}
             (testing "Detail perms for a DB can be set and revoked"
               (ee-perms/update-db-details-permissions! group-id (mt/id) :yes)
@@ -234,6 +236,31 @@
                (ee-perms/update-db-details-permissions! group-id (mt/id) :yes))))))))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                          DB execute permissions                                                |
+;;; +----------------------------------------------------------------------------------------------------------------+
+
+(defn- execute-perms-by-group-id [group-id]
+  (get-in (perms/execution-perms-graph) [:groups group-id (mt/id)]))
+
+(deftest update-db-execute-permissions-test
+  (mt/with-model-cleanup [Permissions]
+    (t2.with-temp/with-temp [PermissionsGroup {group-id :id}]
+      (premium-features-test/with-premium-features #{:advanced-permissions}
+        (testing "Execute perms for a DB can be set and revoked"
+          (ee-perms/update-db-execute-permissions! group-id (mt/id) :all)
+          (is (= :all (execute-perms-by-group-id group-id)))
+
+          (ee-perms/update-db-execute-permissions! group-id (mt/id) :none)
+          (is (nil? (execute-perms-by-group-id group-id)))))
+
+      (premium-features-test/with-premium-features #{}
+        (testing "Execute permissions cannot be modified without the :advanced-permissions feature flag"
+          (is (thrown-with-msg?
+               clojure.lang.ExceptionInfo
+               #"The execute permissions functionality is only enabled if you have a premium token with the advanced-permissions feature."
+               (ee-perms/update-db-execute-permissions! group-id (mt/id) :all))))))))
+
+;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                                    Graph                                                       |
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
@@ -242,7 +269,7 @@
     (doseq [[perm-type perm-value] [[:data-model :all] [:download :full]]]
       (testing (pr-str perm-type)
         (testing "slash"
-          (mt/with-temp PermissionsGroup [group]
+          (t2.with-temp/with-temp [PermissionsGroup group]
             (#'ee-perms/grant-permissions! perm-type perm-value (:id group) (mt/id) "schema/with_slash")
             (is (= "schema/with_slash"
                    (-> (get-in (perms/data-perms-graph) [:groups (u/the-id group) (mt/id) perm-type :schemas])
@@ -250,7 +277,7 @@
                        first)))))
 
         (testing "backslash"
-          (mt/with-temp PermissionsGroup [group]
+          (t2.with-temp/with-temp [PermissionsGroup group]
             (#'ee-perms/grant-permissions! perm-type perm-value (:id group) (mt/id) "schema\\with_backslash")
             (is (= "schema\\with_backslash"
                    (-> (get-in (perms/data-perms-graph) [:groups (u/the-id group) (mt/id) perm-type :schemas])

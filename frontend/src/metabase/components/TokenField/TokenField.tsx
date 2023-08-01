@@ -1,10 +1,11 @@
-import React, { Component } from "react";
+import { Component } from "react";
+import * as React from "react";
 import PropTypes from "prop-types";
 import { findDOMNode } from "react-dom";
 import _ from "underscore";
 import cx from "classnames";
 
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 import TippyPopover from "metabase/components/Popover/TippyPopover";
 
 import {
@@ -82,10 +83,7 @@ const defaultStyleValue = {
   fontWeight: 700,
 };
 
-export default class TokenField extends Component<
-  TokenFieldProps,
-  TokenFieldState
-> {
+class TokenField extends Component<TokenFieldProps, TokenFieldState> {
   inputRef: React.RefObject<HTMLInputElement>;
   scrollElement = null;
 
@@ -583,11 +581,7 @@ export default class TokenField extends Component<
           <PrefixContainer data-testid="input-prefix">{prefix}</PrefixContainer>
         )}
         {value.map((v, index) => (
-          <TokenFieldItem
-            key={index}
-            className="TokenField-ItemWrapper"
-            isValid={validateValue(v)}
-          >
+          <TokenFieldItem key={index} isValid={validateValue(v)}>
             <span style={{ ...defaultStyleValue, ...valueStyle }}>
               {valueRenderer(v)}
             </span>
@@ -607,7 +601,7 @@ export default class TokenField extends Component<
           </TokenFieldItem>
         ))}
         {canAddItems && (
-          <TokenInputItem className="TokenField-NewItemInputContainer">
+          <TokenInputItem>
             <input
               ref={this.inputRef}
               style={{ ...defaultStyleValue, ...valueStyle }}
@@ -704,3 +698,9 @@ DefaultTokenFieldLayout.propTypes = {
   optionsList: PropTypes.element,
   isFocused: PropTypes.bool,
 };
+
+// eslint-disable-next-line import/no-default-export -- deprecated usage
+export default Object.assign(TokenField, {
+  FieldItem: TokenFieldItem,
+  NewItemInputContainer: TokenInputItem,
+});

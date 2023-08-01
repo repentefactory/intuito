@@ -1,10 +1,9 @@
-import React from "react";
 import { t } from "ttag";
 
 import AccordionList from "metabase/core/components/AccordionList";
-import Icon from "metabase/components/Icon";
-import type { Field } from "metabase-types/api/field";
-import type { Table } from "metabase-types/api/table";
+import { Icon, IconName } from "metabase/core/components/Icon";
+import type Table from "metabase-lib/metadata/Table";
+import type Field from "metabase-lib/metadata/Field";
 import DataSelectorLoading from "../DataSelectorLoading";
 
 import {
@@ -31,10 +30,7 @@ type HeaderProps = {
 
 type FieldWithName = {
   name: string;
-  field: {
-    id: number;
-    dimension: () => any;
-  };
+  field: Field;
 };
 
 const DataSelectorFieldPicker = ({
@@ -57,7 +53,7 @@ const DataSelectorFieldPicker = ({
     {
       name: header,
       items: fields.map(field => ({
-        name: field.display_name,
+        name: field.displayName(),
         field: field,
       })),
     },
@@ -67,7 +63,12 @@ const DataSelectorFieldPicker = ({
     item.field && selectedField && item.field.id === selectedField.id;
 
   const renderItemIcon = (item: FieldWithName) =>
-    item.field && <Icon name={item.field.dimension().icon()} size={18} />;
+    item.field && (
+      <Icon
+        name={item.field.dimension().icon() as unknown as IconName}
+        size={18}
+      />
+    );
 
   return (
     <Container>
@@ -96,4 +97,5 @@ const Header = ({ onBack, selectedTable }: HeaderProps) => (
   </HeaderContainer>
 );
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default DataSelectorFieldPicker;

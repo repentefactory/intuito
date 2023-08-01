@@ -1,12 +1,7 @@
-import React from "react";
+import * as React from "react";
 import { t, jt } from "ttag";
 
-import Icon from "metabase/components/Icon";
-
-import {
-  isActionDashCard,
-  getActionButtonLabel,
-} from "metabase/writeback/utils";
+import { Icon } from "metabase/core/components/Icon";
 
 import type { DashboardOrderedCard, DatasetColumn } from "metabase-types/api";
 
@@ -46,10 +41,6 @@ function HeaderContent({ dashcard, selectedColumn, onUnsetColumn }: Props) {
     }
     return <Heading>{t`On-click behavior for each column`}</Heading>;
   }
-  if (isActionDashCard(dashcard)) {
-    const label = getActionButtonLabel(dashcard);
-    return <DefaultHeader>{label || t`an action button`}</DefaultHeader>;
-  }
   return <DefaultHeader>{dashcard.card.name}</DefaultHeader>;
 }
 
@@ -61,4 +52,5 @@ function ClickBehaviorSidebarHeader(props: Props) {
   );
 }
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default ClickBehaviorSidebarHeader;

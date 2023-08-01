@@ -1,18 +1,21 @@
-/* eslint-disable react/prop-types */
-import React from "react";
+import * as React from "react";
 
 import { getAccentColors } from "metabase/lib/colors/groups";
 import ColorSelector from "metabase/core/components/ColorSelector";
-import InputBlurChange from "metabase/components/InputBlurChange";
-import { Series } from "metabase-types/types/Visualization";
-import { VisualizationSettings } from "metabase-types/api/card";
+import type { SingleSeries, VisualizationSettings } from "metabase-types/api";
+
+import { SeriesNameInput } from "./ChartNestedSettingSeries.styled";
 
 export interface ChartNestedSettingsSeriesSingleProps {
-  object: Series;
-  getObjectKey: (object: Series) => string;
-  onChangeObjectSettings: (object: Series, value: Record<string, any>) => void;
+  object: SingleSeries;
+  getObjectKey: (object: SingleSeries) => string;
+  onChangeObjectSettings: (
+    object: SingleSeries,
+    value: Record<string, any>,
+  ) => void;
   objectSettingsWidgets: React.ReactNode[];
   allComputedSettings: VisualizationSettings;
+  seriesCardNames: Record<string, string>;
 }
 
 // various props injected by chartSettingNestedSettings HOC
@@ -22,23 +25,32 @@ const ChartNestedSettingsSeriesSingle = ({
   objectSettingsWidgets,
   object,
   allComputedSettings,
+  seriesCardNames,
 }: ChartNestedSettingsSeriesSingleProps) => {
   const objectKey = object && getObjectKey(object);
   const computedSettings = allComputedSettings[objectKey] || {};
+  const seriesCardName = seriesCardNames?.[objectKey];
 
   return (
-    <div key={objectKey} className="px4 align-self-stretch">
+    <div
+      key={objectKey}
+      className="px4 align-self-stretch"
+      data-testid="series-settings"
+    >
       <div className="flex align-center border-bottom pb2">
         <ColorSelector
           value={computedSettings.color}
           colors={getAccentColors()}
           onChange={value => onChangeObjectSettings(object, { color: value })}
         />
-        <InputBlurChange
-          className="input flex-full ml1 align-self-stretch"
-          size={1}
+        <SeriesNameInput
+          className="flex-full ml1 align-self-stretch"
           value={computedSettings.title}
-          onBlurChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          aria-label="series-name-input"
+          subtitle={
+            seriesCardName === computedSettings.title ? "" : seriesCardName
+          }
+          onBlurChange={e =>
             onChangeObjectSettings(object, { title: e.target.value })
           }
         />
@@ -50,4 +62,5 @@ const ChartNestedSettingsSeriesSingle = ({
   );
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default ChartNestedSettingsSeriesSingle;

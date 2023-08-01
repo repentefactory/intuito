@@ -1,14 +1,15 @@
 /* eslint-disable react/prop-types */
 
-import React from "react";
+import { t } from "ttag";
 
 import cx from "classnames";
 import { color } from "metabase/lib/colors";
 
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 import LoadingSpinner from "metabase/components/LoadingSpinner";
 import ListSearchField from "metabase/components/ListSearchField";
-import { ListCellItem } from "./AccordionListCell.styled";
+import { Box } from "metabase/ui";
+import { ListCellItem, FilterContainer } from "./AccordionListCell.styled";
 
 export const AccordionListCell = ({
   style,
@@ -22,15 +23,15 @@ export const AccordionListCell = ({
   alwaysExpanded,
   toggleSection,
   renderSectionIcon,
-  renderSectionExtra,
   renderItemName,
   renderItemDescription,
   renderItemIcon,
   renderItemExtra,
   renderItemWrapper,
+  showSpinner,
   searchText,
   onChangeSearchText,
-  searchPlaceholder,
+  searchPlaceholder = t`Find...`,
   showItemArrows,
   itemTestId,
   getItemClassName,
@@ -52,7 +53,6 @@ export const AccordionListCell = ({
       );
     } else {
       const icon = renderSectionIcon(section);
-      const extra = renderSectionExtra(section, sectionIndex);
       const name = section.name;
       content = (
         <div
@@ -74,7 +74,11 @@ export const AccordionListCell = ({
             </span>
           )}
           {name && <h3 className="List-section-title text-wrap">{name}</h3>}
-          {extra}
+          {showSpinner(section) && (
+            <Box ml="0.5rem">
+              <LoadingSpinner size={16} borderWidth={2} />
+            </Box>
+          )}
           {sections.length > 1 && section.items && section.items.length > 0 && (
             <span className="flex-align-right ml1 hover-child">
               <Icon
@@ -98,15 +102,17 @@ export const AccordionListCell = ({
     );
   } else if (type === "search") {
     content = (
-      <ListSearchField
-        autoFocus
-        hasClearButton
-        className="bg-white m1"
-        onChange={onChangeSearchText}
-        value={searchText}
-        placeholder={searchPlaceholder}
-        {...searchInputProps}
-      />
+      <FilterContainer>
+        <ListSearchField
+          fullWidth
+          autoFocus
+          onChange={e => onChangeSearchText(e.target.value)}
+          onResetClick={() => onChangeSearchText("")}
+          value={searchText}
+          placeholder={searchPlaceholder}
+          {...searchInputProps}
+        />
+      </FilterContainer>
     );
   } else if (type === "item") {
     const isSelected = itemIsSelected(item, itemIndex);
@@ -114,9 +120,11 @@ export const AccordionListCell = ({
     const icon = renderItemIcon(item);
     const name = renderItemName(item);
     const description = renderItemDescription(item);
+    const extra = renderItemExtra(item, isSelected);
     content = (
       <ListCellItem
         data-testid={itemTestId}
+        aria-label={name}
         role="option"
         aria-selected={isSelected}
         isClickable={isClickable}
@@ -152,8 +160,13 @@ export const AccordionListCell = ({
               </p>
             )}
           </div>
+          {showSpinner(item) && (
+            <Box ml="0.5rem">
+              <LoadingSpinner size={16} borderWidth={2} />
+            </Box>
+          )}
         </span>
-        {renderItemExtra(item, itemIndex, isSelected)}
+        {extra}
         {showItemArrows && (
           <div className="List-item-arrow flex align-center px1">
             <Icon name="chevronright" size={8} />

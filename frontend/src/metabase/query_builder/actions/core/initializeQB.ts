@@ -11,14 +11,16 @@ import { getUser } from "metabase/selectors/user";
 
 import Snippets from "metabase/entities/snippets";
 import Questions from "metabase/entities/questions";
+import { loadMetadataForCard } from "metabase/questions/actions";
 import { fetchAlertsForQuestion } from "metabase/alert/alert";
+import { getIsEditingInDashboard } from "metabase/query_builder/selectors";
 
+import { Card } from "metabase-types/api";
 import {
   Dispatch,
   GetState,
   QueryBuilderUIControls,
 } from "metabase-types/store";
-import type { Card } from "metabase-types/types/Card";
 import { isSavedCard } from "metabase-types/guards";
 import { isNotNull } from "metabase/core/utils/types";
 import { cardIsEquivalent } from "metabase-lib/queries/utils/card";
@@ -27,14 +29,13 @@ import Question from "metabase-lib/Question";
 import NativeQuery, {
   updateCardTemplateTagNames,
 } from "metabase-lib/queries/NativeQuery";
-import StructuredQuery from "metabase-lib/queries/StructuredQuery";
 
+import StructuredQuery from "metabase-lib/queries/StructuredQuery";
 import { getQueryBuilderModeFromLocation } from "../../typed-utils";
 import { updateUrl } from "../navigation";
-import { cancelQuery, runQuestionQuery } from "../querying";
 
+import { cancelQuery, runQuestionQuery } from "../querying";
 import { resetQB } from "./core";
-import { loadMetadataForCard } from "./metadata";
 import {
   propagateDashboardParameters,
   getParameterValuesForQuestion,
@@ -314,6 +315,11 @@ async function handleQBInit(
     }
   }
 
+  if (question.isNative()) {
+    const isEditing = getIsEditingInDashboard(getState());
+    uiControls.isNativeEditorOpen = isEditing || !question.isSaved();
+  }
+
   if (question.isNative() && !question.query().readOnly()) {
     const query = question.query() as NativeQuery;
     const newQuery = await updateTemplateTagNames(query, getState, dispatch);
@@ -350,7 +356,7 @@ async function handleQBInit(
       );
     }
     dispatch(
-      updateUrl(finalCard, {
+      updateUrl(question, {
         replaceState: true,
         preserveParameters: hasCard,
         objectId,

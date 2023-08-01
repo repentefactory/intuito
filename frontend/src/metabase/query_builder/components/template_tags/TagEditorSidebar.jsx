@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React from "react";
+import { Component } from "react";
 import PropTypes from "prop-types";
 
 import { t } from "ttag";
@@ -12,7 +12,7 @@ import NativeQuery from "metabase-lib/queries/NativeQuery";
 import TagEditorParam from "./TagEditorParam";
 import TagEditorHelp from "./TagEditorHelp";
 
-export default class TagEditorSidebar extends React.Component {
+export default class TagEditorSidebar extends Component {
   state = {
     section: "settings",
   };
@@ -24,6 +24,7 @@ export default class TagEditorSidebar extends React.Component {
     sampleDatabaseId: PropTypes.number,
     setDatasetQuery: PropTypes.func.isRequired,
     setTemplateTag: PropTypes.func.isRequired,
+    setTemplateTagConfig: PropTypes.func.isRequired,
     setParameterValue: PropTypes.func.isRequired,
   };
 
@@ -44,6 +45,7 @@ export default class TagEditorSidebar extends React.Component {
       setDatasetQuery,
       query,
       setTemplateTag,
+      setTemplateTagConfig,
       setParameterValue,
       onClose,
     } = this.props;
@@ -85,6 +87,7 @@ export default class TagEditorSidebar extends React.Component {
               database={database}
               databases={databases}
               setTemplateTag={setTemplateTag}
+              setTemplateTagConfig={setTemplateTagConfig}
               setParameterValue={setParameterValue}
             />
           ) : (
@@ -108,6 +111,7 @@ const SettingsPane = ({
   database,
   databases,
   setTemplateTag,
+  setTemplateTagConfig,
   setParameterValue,
 }) => (
   <div>
@@ -121,6 +125,7 @@ const SettingsPane = ({
           database={database}
           databases={databases}
           setTemplateTag={setTemplateTag}
+          setTemplateTagConfig={setTemplateTagConfig}
           setParameterValue={setParameterValue}
         />
       </div>

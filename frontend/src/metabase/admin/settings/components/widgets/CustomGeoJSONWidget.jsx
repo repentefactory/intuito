@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { Component } from "react";
+import { memo, Component } from "react";
 import PropTypes from "prop-types";
 import { t } from "ttag";
 
@@ -317,7 +317,7 @@ const EditMap = ({
   onCancel,
   onSave,
 }) => (
-  <div>
+  <div data-testid="edit-map-modal">
     <div className="flex">
       <div className="flex-no-shrink">
         <h2>{!originalMap ? t`Add a new map` : t`Edit map`}</h2>
@@ -415,7 +415,7 @@ const EditMap = ({
   </div>
 );
 
-const ChoroplethPreview = React.memo(({ geoJson }) => (
+const ChoroplethPreview = memo(({ geoJson }) => (
   <LeafletChoropleth geoJson={geoJson} />
 ));
 

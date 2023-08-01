@@ -1,170 +1,90 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
-
-import React from "react";
 import { screen } from "@testing-library/react";
-import { metadata } from "__support__/sample_database_fixture";
+import { createMockMetadata } from "__support__/metadata";
 import { renderWithProviders } from "__support__/ui";
-
-import Field from "metabase-lib/metadata/Field";
+import { checkNotNull } from "metabase/core/utils/types";
+import { createMockField } from "metabase-types/api/mocks";
+import {
+  ORDERS,
+  PEOPLE,
+  PEOPLE_ID,
+  PEOPLE_SOURCE_VALUES,
+  REVIEWS,
+  createOrdersTable,
+  createPeopleIdField,
+  createPeopleNameField,
+  createPeopleSourceField,
+  createPeopleTable,
+  createProductsTable,
+  createReviewsTable,
+  createSampleDatabase,
+  createSavedStructuredCard,
+} from "metabase-types/api/mocks/presets";
 import Filter from "metabase-lib/queries/structured/Filter";
-import Question from "metabase-lib/Question";
+import type StructuredQuery from "metabase-lib/queries/StructuredQuery";
 
 import { BulkFilterItem } from "./BulkFilterItem";
 
-const booleanField = new Field({
-  database_type: "test",
-  semantic_type: "",
-  table_id: 8,
-  name: "bool",
-  has_field_values: "none",
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Boolean",
-  id: 134,
-  base_type: "type/Boolean",
-  metadata,
-});
-
-const intField = new Field({
-  database_type: "test",
-  semantic_type: "type/Integer",
-  table_id: 8,
-  name: "int_num",
-  has_field_values: "none",
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Integer",
-  id: 135,
-  base_type: "type/Integer",
-  metadata,
-});
-
-const floatField = new Field({
-  database_type: "test",
-  semantic_type: "type/Integer",
-  table_id: 8,
-  name: "float_num",
-  has_field_values: "none",
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Float",
-  id: 136,
-  base_type: "type/Float",
-  metadata,
-});
-
-const categoryField = new Field({
-  database_type: "test",
-  semantic_type: "",
-  table_id: 8,
-  name: "category_string",
-  has_field_values: "list",
-  values: [["Michaelangelo"], ["Donatello"], ["Raphael"], ["Leonardo"]],
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Text",
-  id: 137,
-  base_type: "type/Text",
-  metadata,
-});
-
-const pkField = new Field({
-  database_type: "test",
-  semantic_type: "type/PK",
-  table_id: 8,
-  name: "pk_field",
-  has_field_values: "none",
-  values: [],
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Integer",
-  id: 138,
-  base_type: "type/Integer",
-  metadata,
-});
-
-const fkField = new Field({
-  database_type: "test",
-  semantic_type: "type/FK",
-  table_id: 8,
-  name: "fk_field",
-  has_field_values: "none",
-  values: [],
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Integer",
-  id: 139,
-  base_type: "type/Integer",
-  metadata,
-});
-
-const textField = new Field({
-  database_type: "test",
-  semantic_type: "",
-  table_id: 8,
-  name: "text_field",
-  has_field_values: "search",
-  values: [],
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Text",
-  id: 140,
-  base_type: "type/Text",
-  metadata,
-});
-
-const longTextField = new Field({
-  database_type: "test",
-  semantic_type: "type/Description",
-  table_id: 8,
-  name: "text_field",
-  has_field_values: "search",
-  values: [],
-  dimensions: {},
-  dimension_options: [],
-  effective_type: "type/Text",
-  id: 141,
-  base_type: "type/Text",
-  metadata,
-});
-
-metadata.fields[booleanField.id] = booleanField;
-metadata.fields[intField.id] = intField;
-metadata.fields[floatField.id] = floatField;
-metadata.fields[categoryField.id] = categoryField;
-metadata.fields[pkField.id] = pkField;
-metadata.fields[fkField.id] = fkField;
-metadata.fields[textField.id] = textField;
-metadata.fields[longTextField.id] = longTextField;
-
-const card = {
-  dataset_query: {
-    database: 5,
-    query: {
-      "source-table": 8,
-    },
-    type: "query",
-  },
-  display: "table",
-  visualization_settings: {},
-};
-
-const question = new Question(card, metadata);
-const query = question.query();
-const booleanDimension = booleanField.dimension();
-const floatDimension = floatField.dimension();
-const intDimension = intField.dimension();
-const categoryDimension = categoryField.dimension();
-const pkDimension = pkField.dimension();
-const fkDimension = fkField.dimension();
-const textDimension = textField.dimension();
-const longTextDimension = longTextField.dimension();
+const BOOLEAN_FIELD_ID = 100;
+const INTEGER_FIELD_ID = 101;
 
 describe("BulkFilterItem", () => {
+  const card = createSavedStructuredCard();
+
+  const metadata = createMockMetadata({
+    databases: [
+      createSampleDatabase({
+        tables: [
+          createOrdersTable(),
+          createProductsTable(),
+          createReviewsTable(),
+          createPeopleTable({
+            fields: [
+              createPeopleIdField(),
+              createPeopleNameField(),
+              createPeopleSourceField({
+                values: PEOPLE_SOURCE_VALUES.values,
+              }),
+              createMockField({
+                id: INTEGER_FIELD_ID,
+                table_id: PEOPLE_ID,
+                name: "AGE",
+                display_name: "Age",
+                base_type: "type/Integer",
+                effective_type: "type/Integer",
+                has_field_values: "none",
+              }),
+              createMockField({
+                id: BOOLEAN_FIELD_ID,
+                table_id: PEOPLE_ID,
+                name: "IS_ACTIVE",
+                display_name: "Is Active",
+                base_type: "type/Boolean",
+                effective_type: "type/Boolean",
+                has_field_values: "none",
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+    questions: [card],
+  });
+
+  const question = checkNotNull(metadata.question(card.id));
+  const query = question.query() as StructuredQuery;
+
+  const booleanField = checkNotNull(metadata.field(BOOLEAN_FIELD_ID));
+  const floatField = checkNotNull(metadata.field(ORDERS.TOTAL));
+  const intField = checkNotNull(metadata.field(INTEGER_FIELD_ID));
+  const categoryField = checkNotNull(metadata.field(PEOPLE.SOURCE));
+  const pkField = checkNotNull(metadata.field(ORDERS.ID));
+  const fkField = checkNotNull(metadata.field(ORDERS.PRODUCT_ID));
+  const textField = checkNotNull(metadata.field(PEOPLE.NAME));
+  const longTextField = checkNotNull(metadata.field(REVIEWS.BODY));
+
   it("renders a boolean picker for a boolean filter", () => {
     const testFilter = new Filter(
-      ["=", ["field", booleanField.id, null], true],
+      ["=", booleanField.reference(), true],
       null,
       query,
     );
@@ -174,7 +94,7 @@ describe("BulkFilterItem", () => {
       <BulkFilterItem
         query={query}
         filter={testFilter}
-        dimension={booleanDimension}
+        dimension={booleanField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
@@ -186,30 +106,26 @@ describe("BulkFilterItem", () => {
   });
 
   it("renders a value picker integer field type", () => {
-    const testFilter = new Filter(
-      ["=", ["field", intField.id, null], 99],
-      null,
-      query,
-    );
+    const testFilter = new Filter(["=", intField.reference(), 99], null, query);
     const changeSpy = jest.fn();
 
     renderWithProviders(
       <BulkFilterItem
         query={query}
         filter={testFilter}
-        dimension={intDimension}
+        dimension={intField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
 
-    screen.getByTestId("value-picker");
+    expect(screen.getByTestId("value-picker")).toBeInTheDocument();
   });
 
   it("renders a value picker for float field type", () => {
     const testFilter = new Filter(
-      ["=", ["field", floatField.id, null], 99],
+      ["=", floatField.reference(), 99],
       null,
       query,
     );
@@ -219,13 +135,13 @@ describe("BulkFilterItem", () => {
       <BulkFilterItem
         query={query}
         filter={testFilter}
-        dimension={floatDimension}
+        dimension={floatField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
-    screen.getByTestId("value-picker");
+    expect(screen.getByTestId("value-picker")).toBeInTheDocument();
   });
 
   it("defaults to a between picker for float field type", () => {
@@ -235,21 +151,21 @@ describe("BulkFilterItem", () => {
       <BulkFilterItem
         query={query}
         filter={undefined}
-        dimension={floatDimension}
+        dimension={floatField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
-    screen.getByTestId("value-picker");
-    screen.getByText(/between/i);
-    screen.getByPlaceholderText("Min");
-    screen.getByPlaceholderText("Max");
+    expect(screen.getByTestId("value-picker")).toBeInTheDocument();
+    expect(screen.getByText(/between/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Min")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Max")).toBeInTheDocument();
   });
 
   it("renders a category picker for category type", () => {
     const testFilter = new Filter(
-      ["=", ["field", categoryField.id, null], "Donatello"],
+      ["=", categoryField.reference(), "Gadget"],
       null,
       query,
     );
@@ -259,60 +175,52 @@ describe("BulkFilterItem", () => {
       <BulkFilterItem
         query={query}
         filter={testFilter}
-        dimension={categoryDimension}
+        dimension={categoryField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
-    screen.getByTestId("category-picker");
+    expect(screen.getByTestId("category-picker")).toBeInTheDocument();
   });
 
   it("renders a value picker for a primary key", () => {
-    const testFilter = new Filter(
-      ["=", ["field", pkField.id, null], 1],
-      null,
-      query,
-    );
+    const testFilter = new Filter(["=", pkField.reference(), 1], null, query);
     const changeSpy = jest.fn();
 
     renderWithProviders(
       <BulkFilterItem
         query={query}
         filter={testFilter}
-        dimension={pkDimension}
+        dimension={pkField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
-    screen.getByTestId("value-picker");
+    expect(screen.getByTestId("value-picker")).toBeInTheDocument();
   });
 
   it("renders a value picker for a foreign key", () => {
-    const testFilter = new Filter(
-      ["=", ["field", fkField.id, null], 1],
-      null,
-      query,
-    );
+    const testFilter = new Filter(["=", fkField.reference(), 1], null, query);
     const changeSpy = jest.fn();
 
     renderWithProviders(
       <BulkFilterItem
         query={query}
         filter={testFilter}
-        dimension={fkDimension}
+        dimension={fkField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
-    screen.getByTestId("value-picker");
+    expect(screen.getByTestId("value-picker")).toBeInTheDocument();
   });
 
   it("renders a value picker for a text field", () => {
     const testFilter = new Filter(
-      ["contains", ["field", textField.id, null], "foo"],
+      ["contains", textField.reference(), "foo"],
       null,
       query,
     );
@@ -322,14 +230,14 @@ describe("BulkFilterItem", () => {
       <BulkFilterItem
         query={query}
         filter={testFilter}
-        dimension={textDimension}
+        dimension={textField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
-    screen.getByTestId("value-picker");
-    screen.getByDisplayValue("foo");
+    expect(screen.getByTestId("value-picker")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("foo")).toBeInTheDocument();
   });
 
   it("defaults key filters to 'is' operator", () => {
@@ -339,13 +247,13 @@ describe("BulkFilterItem", () => {
       <BulkFilterItem
         query={query}
         filter={undefined}
-        dimension={fkDimension}
+        dimension={fkField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
-    screen.getByText(/is/i);
+    expect(screen.getByText(/is/i)).toBeInTheDocument();
   });
 
   it("defaults text filters to 'is' operator", () => {
@@ -355,13 +263,13 @@ describe("BulkFilterItem", () => {
       <BulkFilterItem
         query={query}
         filter={undefined}
-        dimension={textDimension}
+        dimension={textField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
-    screen.getByText(/is/i);
+    expect(screen.getByText(/is/i)).toBeInTheDocument();
   });
 
   it("defaults long text filters to 'contains' operator", () => {
@@ -371,12 +279,12 @@ describe("BulkFilterItem", () => {
       <BulkFilterItem
         query={query}
         filter={undefined}
-        dimension={longTextDimension}
+        dimension={longTextField.dimension()}
         onAddFilter={changeSpy}
         onChangeFilter={changeSpy}
         onRemoveFilter={changeSpy}
       />,
     );
-    screen.getByText(/contains/i);
+    expect(screen.getByText(/contains/i)).toBeInTheDocument();
   });
 });

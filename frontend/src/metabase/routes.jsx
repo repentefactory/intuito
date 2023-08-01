@@ -1,7 +1,4 @@
-import React from "react";
-import { Redirect, IndexRedirect, IndexRoute } from "react-router";
-import { routerActions } from "react-router-redux";
-import { UserAuthWrapper } from "redux-auth-wrapper";
+import { IndexRedirect, IndexRoute, Redirect } from "react-router";
 import { t } from "ttag";
 
 import { Route } from "metabase/hoc/Title";
@@ -12,13 +9,14 @@ import MetabaseSettings from "metabase/lib/settings";
 
 import App from "metabase/App.tsx";
 
-import ActivityApp from "metabase/home/containers/ActivityApp";
+import ModelMetabotApp from "metabase/metabot/containers/ModelMetabotApp";
+import DatabaseMetabotApp from "metabase/metabot/containers/DatabaseMetabotApp";
 
 // auth containers
-import ForgotPasswordApp from "metabase/auth/containers/ForgotPasswordApp";
-import LoginApp from "metabase/auth/containers/LoginApp";
-import LogoutApp from "metabase/auth/containers/LogoutApp";
-import ResetPasswordApp from "metabase/auth/containers/ResetPasswordApp";
+import { ForgotPassword } from "metabase/auth/components/ForgotPassword";
+import { Login } from "metabase/auth/components/Login";
+import { Logout } from "metabase/auth/components/Logout";
+import { ResetPassword } from "metabase/auth/components/ResetPassword";
 
 /* Dashboards */
 import DashboardApp from "metabase/dashboard/containers/DashboardApp";
@@ -38,10 +36,11 @@ import CollectionPermissionsModal from "metabase/admin/permissions/components/Co
 import UserCollectionList from "metabase/containers/UserCollectionList";
 
 import PulseEditApp from "metabase/pulse/containers/PulseEditApp";
-import SetupApp from "metabase/setup/containers/SetupApp";
+import { Setup } from "metabase/setup/components/Setup";
 
-import NewModelOptions from "metabase/new_model/containers/NewModelOptions";
+import NewModelOptions from "metabase/models/containers/NewModelOptions";
 
+import { UnsubscribePage } from "metabase/containers/Unsubscribe";
 import { Unauthorized } from "metabase/containers/ErrorPages";
 import NotFoundFallbackPage from "metabase/containers/NotFoundFallbackPage";
 
@@ -71,86 +70,35 @@ import FieldDetailContainer from "metabase/reference/databases/FieldDetailContai
 import getAccountRoutes from "metabase/account/routes";
 import getAdminRoutes from "metabase/admin/routes";
 import getCollectionTimelineRoutes from "metabase/timelines/collections/routes";
+import { getRoutes as getModelRoutes } from "metabase/models/routes";
 
-import PublicQuestion from "metabase/public/containers/PublicQuestion";
+import { PublicQuestion } from "metabase/public/containers/PublicQuestion";
 import PublicDashboard from "metabase/public/containers/PublicDashboard";
 import ArchiveDashboardModal from "metabase/dashboard/containers/ArchiveDashboardModal";
 import DashboardMoveModal from "metabase/dashboard/components/DashboardMoveModal";
 import DashboardCopyModal from "metabase/dashboard/components/DashboardCopyModal";
 import { ModalRoute } from "metabase/hoc/ModalRoute";
 
-import HomePage from "metabase/home/homepage/containers/HomePage";
+import { HomePage } from "metabase/home/components/HomePage";
 import CollectionLanding from "metabase/collections/components/CollectionLanding";
 
-import ArchiveApp from "metabase/home/containers/ArchiveApp";
-import SearchApp from "metabase/home/containers/SearchApp";
+import ArchiveApp from "metabase/archive/containers/ArchiveApp";
+import SearchApp from "metabase/search/containers/SearchApp";
 import { trackPageView } from "metabase/lib/analytics";
-import { getAdminPaths } from "metabase/admin/app/selectors";
-
-const MetabaseIsSetup = UserAuthWrapper({
-  predicate: authData => authData.hasUserSetup,
-  failureRedirectPath: "/setup",
-  authSelector: state => ({ hasUserSetup: MetabaseSettings.hasUserSetup() }), // HACK
-  wrapperDisplayName: "MetabaseIsSetup",
-  allowRedirectBack: false,
-  redirectAction: routerActions.replace,
-});
-
-const UserIsAuthenticated = UserAuthWrapper({
-  failureRedirectPath: "/auth/login",
-  authSelector: state => state.currentUser,
-  wrapperDisplayName: "UserIsAuthenticated",
-  redirectAction: routerActions.replace,
-});
-
-const UserIsAdmin = UserAuthWrapper({
-  predicate: currentUser => currentUser && currentUser.is_superuser,
-  failureRedirectPath: "/unauthorized",
-  authSelector: state => state.currentUser,
-  allowRedirectBack: false,
-  wrapperDisplayName: "UserIsAdmin",
-  redirectAction: routerActions.replace,
-});
-
-const UserIsNotAuthenticated = UserAuthWrapper({
-  predicate: currentUser => !currentUser,
-  failureRedirectPath: "/",
-  authSelector: state => state.currentUser,
-  allowRedirectBack: false,
-  wrapperDisplayName: "UserIsNotAuthenticated",
-  redirectAction: routerActions.replace,
-});
-
-const UserCanAccessSettings = UserAuthWrapper({
-  predicate: adminItems => adminItems?.length > 0,
-  failureRedirectPath: "/unauthorized",
-  authSelector: getAdminPaths,
-  allowRedirectBack: false,
-  wrapperDisplayName: "UserCanAccessSettings",
-  redirectAction: routerActions.replace,
-});
-
-const IsAuthenticated = MetabaseIsSetup(
-  UserIsAuthenticated(({ children }) => children),
-);
-const IsAdmin = MetabaseIsSetup(
-  UserIsAuthenticated(UserIsAdmin(({ children }) => children)),
-);
-
-const IsNotAuthenticated = MetabaseIsSetup(
-  UserIsNotAuthenticated(({ children }) => children),
-);
-
-const CanAccessSettings = MetabaseIsSetup(
-  UserIsAuthenticated(UserCanAccessSettings(({ children }) => children)),
-);
+import {
+  CanAccessMetabot,
+  CanAccessSettings,
+  IsAdmin,
+  IsAuthenticated,
+  IsNotAuthenticated,
+} from "./route-guards";
 
 export const getRoutes = store => (
   <Route title={t`Metabase`} component={App}>
     {/* SETUP */}
     <Route
       path="/setup"
-      component={SetupApp}
+      component={Setup}
       onEnter={(nextState, replace) => {
         if (MetabaseSettings.hasUserSetup()) {
           replace("/");
@@ -165,7 +113,7 @@ export const getRoutes = store => (
     {/* PUBLICLY SHARED LINKS */}
     <Route path="public">
       <Route path="question/:uuid" component={PublicQuestion} />
-      <Route path="dashboard/:uuid" component={PublicDashboard} />
+      <Route path="dashboard/:uuid(/:tabSlug)" component={PublicDashboard} />
     </Route>
 
     {/* APP */}
@@ -176,19 +124,21 @@ export const getRoutes = store => (
         done();
       }}
       onChange={(prevState, nextState) => {
-        trackPageView(nextState.location.pathname);
+        if (nextState.location.pathname !== prevState.location.pathname) {
+          trackPageView(nextState.location.pathname);
+        }
       }}
     >
       {/* AUTH */}
       <Route path="/auth">
         <IndexRedirect to="/auth/login" />
         <Route component={IsNotAuthenticated}>
-          <Route path="login" title={t`Login`} component={LoginApp} />
-          <Route path="login/:provider" title={t`Login`} component={LoginApp} />
+          <Route path="login" title={t`Login`} component={Login} />
+          <Route path="login/:provider" title={t`Login`} component={Login} />
         </Route>
-        <Route path="logout" component={LogoutApp} />
-        <Route path="forgot_password" component={ForgotPasswordApp} />
-        <Route path="reset_password/:token" component={ResetPasswordApp} />
+        <Route path="logout" component={Logout} />
+        <Route path="forgot_password" component={ForgotPassword} />
+        <Route path="reset_password/:token" component={ResetPassword} />
       </Route>
 
       {/* MAIN */}
@@ -219,8 +169,6 @@ export const getRoutes = store => (
           {getCollectionTimelineRoutes()}
         </Route>
 
-        <Route path="activity" component={ActivityApp} />
-
         <Route
           path="dashboard/:slug"
           title={t`Dashboard`}
@@ -236,8 +184,17 @@ export const getRoutes = store => (
           <Route path="notebook" component={QueryBuilder} />
           <Route path=":slug" component={QueryBuilder} />
           <Route path=":slug/notebook" component={QueryBuilder} />
+          <Route path=":slug/metabot" component={QueryBuilder} />
           <Route path=":slug/:objectId" component={QueryBuilder} />
         </Route>
+
+        <Route path="/metabot" component={CanAccessMetabot}>
+          <Route path="database/:databaseId" component={DatabaseMetabotApp} />
+          <Route path="model/:slug" component={ModelMetabotApp} />
+        </Route>
+
+        {/* MODELS */}
+        {getModelRoutes()}
 
         <Route path="/model">
           <IndexRoute component={QueryBuilder} />
@@ -247,9 +204,10 @@ export const getRoutes = store => (
           <Route path=":slug/notebook" component={QueryBuilder} />
           <Route path=":slug/query" component={QueryBuilder} />
           <Route path=":slug/metadata" component={QueryBuilder} />
+          <Route path=":slug/metabot" component={QueryBuilder} />
           <Route path=":slug/:objectId" component={QueryBuilder} />
           <Route path="query" component={QueryBuilder} />
-          <Route path="metadata" component={QueryBuilder} />
+          <Route path="metabot" component={QueryBuilder} />
         </Route>
 
         <Route path="browse" component={BrowseApp}>
@@ -345,16 +303,6 @@ export const getRoutes = store => (
       </Route>
     </Route>
 
-    {/* INTERNAL */}
-    <Route
-      path="/_internal"
-      getChildRoutes={(partialNextState, callback) =>
-        require.ensure([], function (require) {
-          callback(null, [require("metabase/internal/routes").default]);
-        })
-      }
-    />
-
     {/* DEPRECATED */}
     {/* NOTE: these custom routes are needed because <Redirect> doesn't preserve the hash */}
     <Route
@@ -379,6 +327,7 @@ export const getRoutes = store => (
     />
 
     {/* MISC */}
+    <Route path="/unsubscribe" component={UnsubscribePage} />
     <Route path="/unauthorized" component={Unauthorized} />
     <Route path="/*" component={NotFoundFallbackPage} />
   </Route>

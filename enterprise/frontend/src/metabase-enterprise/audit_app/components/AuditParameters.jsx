@@ -1,4 +1,4 @@
-import React from "react";
+import { Component } from "react";
 import PropTypes from "prop-types";
 
 import _ from "underscore";
@@ -26,7 +26,7 @@ const propTypes = {
   hasResults: PropTypes.bool,
 };
 
-export default class AuditParameters extends React.Component {
+export default class AuditParameters extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -67,8 +67,8 @@ export default class AuditParameters extends React.Component {
               value={inputValues[key] || ""}
               placeholder={placeholder}
               disabled={isEmpty || disabled}
-              onChange={value => {
-                this.changeValue(key, value);
+              onChange={e => {
+                this.changeValue(key, e.target.value);
               }}
               icon={icon}
             />

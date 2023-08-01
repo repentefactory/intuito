@@ -1,31 +1,25 @@
 (ns metabase.query-processor.middleware.resolve-referenced-test
-  (:require [clojure.test :refer :all]
-            [metabase.models.card :refer [Card]]
-            [metabase.models.database :refer [Database]]
-            [metabase.query-processor.middleware.parameters-test :refer [card-template-tags]]
-            [metabase.query-processor.middleware.resolve-referenced :as qp.resolve-referenced]
-            [metabase.query-processor.store :as qp.store]
-            [metabase.test :as mt]
-            [toucan.db :as db])
-  (:import clojure.lang.ExceptionInfo))
+  (:require
+   [clojure.test :refer :all]
+   [metabase.models.card :refer [Card]]
+   [metabase.models.database :refer [Database]]
+   [metabase.query-processor.middleware.parameters-test
+    :refer [card-template-tags]]
+   [metabase.query-processor.middleware.resolve-referenced
+    :as qp.resolve-referenced]
+   [metabase.query-processor.store :as qp.store]
+   [metabase.test :as mt]
+   [toucan2.core :as t2]
+   [toucan2.tools.with-temp :as t2.with-temp])
+  (:import
+   (clojure.lang ExceptionInfo)))
 
-(deftest tags-referenced-cards-lookup-test
-  (testing "returns Card instances from raw query"
-    (mt/with-temp* [Card [c1 {}]
-                    Card [c2 {}]]
-      (is (= [c1 c2]
-             (#'qp.resolve-referenced/tags-referenced-cards
-              {:native
-               {:template-tags
-                {"tag-name-not-important1" {:type    :card
-                                            :card-id (:id c1)}
-                 "tag-name-not-important2" {:type    :card
-                                            :card-id (:id c2)}}}}))))))
+(set! *warn-on-reflection* true)
 
 (deftest resolve-card-resources-test
   (testing "resolve stores source table from referenced card"
-    (mt/with-temp Card [mbql-card {:dataset_query (mt/mbql-query venues
-                                                    {:filter [:< $price 3]})}]
+    (t2.with-temp/with-temp [Card mbql-card {:dataset_query (mt/mbql-query venues
+                                                                           {:filter [:< $price 3]})}]
       (let [query {:database (mt/id)
                    :native   {:template-tags
                               {"tag-name-not-important1" {:type    :card
@@ -115,9 +109,9 @@
                                                    :template-tags (card-template-tags [(:id card-1)])})}]]
       ;; Setup circular reference from card-1 to card-2 (card-2 already references card-1)
       (let [card-1-id  (:id card-1)]
-        (db/update! Card (:id card-1) :dataset_query (mt/native-query
-                                                      {:query         (str "SELECT * FROM {{#" (:id card-2) "}} AS c2")
-                                                       :template-tags (card-template-tags [(:id card-2)])}))
+        (t2/update! Card (:id card-1) {:dataset_query (mt/native-query
+                                                        {:query         (str "SELECT * FROM {{#" (:id card-2) "}} AS c2")
+                                                         :template-tags (card-template-tags [(:id card-2)])})})
         (let [entrypoint-query (mt/native-query
                                 {:query (str "SELECT * FROM {{#" (:id card-1) "}}")
                                  :template-tags (card-template-tags [card-1-id])})]

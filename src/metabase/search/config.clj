@@ -1,12 +1,15 @@
 (ns metabase.search.config
-  (:require [cheshire.core :as json]
-            [honeysql.core :as hsql]
-            [metabase.models :refer [Card Collection Dashboard Database Metric Pulse Segment Table]]
-            [metabase.models.setting :refer [defsetting]]
-            [metabase.util.i18n :refer [deferred-tru]]))
+  (:require
+   [metabase.models
+    :refer [Action Card Collection Dashboard Database Metric
+            ModelIndexValue Segment Table]]
+   [metabase.models.setting :refer [defsetting]]
+   [metabase.public-settings :as public-settings]
+   [metabase.util.i18n :refer [deferred-tru]]))
 
 (defsetting search-typeahead-enabled
-  (deferred-tru "Enable typeahead search in the Metabase navbar?")
+  (deferred-tru "Enable typeahead search in the {0} navbar?"
+                (public-settings/application-name-for-setting-descriptions))
   :type       :boolean
   :default    true
   :visibility :authenticated)
@@ -36,28 +39,23 @@
   "Show this many words of context before/after matches in long search results"
   2)
 
-(def searchable-db-models
-  "Models that can be searched."
-  #{Dashboard Metric Segment Card Collection Table Pulse Database})
-
 (def model-to-db-model
   "Mapping from string model to the Toucan model backing it."
-  {"dashboard"  Dashboard
-   "page"       Dashboard
-   "metric"     Metric
-   "segment"    Segment
-   "card"       Card
-   "dataset"    Card
-   "collection" Collection
-   "app"        Collection
-   "table"      Table
-   "pulse"      Pulse
-   "database"   Database})
+  {"action"         {:db-model Action, :alias :action}
+   "card"           {:db-model Card, :alias :card}
+   "collection"     {:db-model Collection, :alias :collection}
+   "dashboard"      {:db-model Dashboard, :alias :dashboard}
+   "database"       {:db-model Database, :alias :database}
+   "dataset"        {:db-model Card, :alias :card}
+   "indexed-entity" {:db-model ModelIndexValue :alias :model-index-value}
+   "metric"         {:db-model Metric, :alias :metric}
+   "segment"        {:db-model Segment, :alias :segment}
+   "table"          {:db-model Table, :alias :table}})
 
 (def all-models
   "All valid models to search for. The order of this list also influences the order of the results: items earlier in the
   list will be ranked higher."
-  ["dashboard" "page" "metric" "segment" "card" "dataset" "collection" "app" "table" "pulse" "database"])
+  ["dashboard" "metric" "segment" "indexed-entity" "card" "dataset" "collection" "table" "action" "database"])
 
 (def ^:const displayed-columns
   "All of the result components that by default are displayed by the frontend."
@@ -72,10 +70,14 @@
   [_]
   [:name])
 
+(defmethod searchable-columns-for-model "action"
+  [_]
+  [:name
+   :description])
+
 (defmethod searchable-columns-for-model "card"
   [_]
   [:name
-   :dataset_query
    :description])
 
 (defmethod searchable-columns-for-model "dataset"
@@ -101,13 +103,17 @@
   [:name
    :display_name])
 
+(defmethod searchable-columns-for-model "indexed-entity"
+  [_]
+  [:name])
+
 (def ^:private default-columns
   "Columns returned for all models."
   [:id :name :description :archived :updated_at])
 
 (def ^:private bookmark-col
   "Case statement to return boolean values of `:bookmark` for Card, Collection and Dashboard."
-  [(hsql/call :case [:not= :bookmark.id nil] true :else false) :bookmark])
+  [[:case [:not= :bookmark.id nil] true :else false] :bookmark])
 
 (def ^:private dashboardcard-count-col
   "Subselect to get the count of associated DashboardCards"
@@ -129,10 +135,17 @@
   {:arglists '([model])}
   (fn [model] model))
 
+(defmethod columns-for-model "action"
+  [_]
+  (conj default-columns :model_id
+        [:model.collection_id        :collection_id]
+        [:model.id                   :model_id]
+        [:model.name                 :model_name]
+        [:query_action.database_id   :database_id]))
+
 (defmethod columns-for-model "card"
   [_]
-  (conj default-columns :collection_id :collection_position :dataset_query
-        [:collection_app.id :collection_app_id]
+  (conj default-columns :collection_id :collection_position
         [:collection.name :collection_name]
         [:collection.authority_level :collection_authority_level]
         [{:select   [:status]
@@ -141,17 +154,27 @@
                      [:= :moderated_item_type "card"]
                      [:= :moderated_item_id :card.id]
                      [:= :most_recent true]]
-          ;; order by and limit just in case a bug lets the invariant of only one most_recent is violated. we dont'
-          ;; want to error in this query
+          ;; order by and limit just in case a bug violates the invariant of only one most_recent. We don't want to
+          ;; error in this query
           :order-by [[:id :desc]]
           :limit    1}
          :moderated_status]
         bookmark-col dashboardcard-count-col))
 
+(defmethod columns-for-model "indexed-entity" [_]
+  [[:model-index-value.name     :name]
+   [:model-index-value.model_pk :id]
+   [:model-index.pk_ref         :pk_ref]
+   [:collection.name            :collection_name]
+   [:model.collection_id        :collection_id]
+   [:model.id                   :model_id]
+   [:model.name                 :model_name]
+   [:model.database_id          :database_id]
+   [:model.dataset_query        :dataset_query]])
+
 (defmethod columns-for-model "dashboard"
   [_]
   (conj default-columns :collection_id :collection_position bookmark-col
-        [:collection_app.id :collection_app_id]
         [:collection.name :collection_name]
         [:collection.authority_level :collection_authority_level]))
 
@@ -159,20 +182,12 @@
   [_]
   [:id :name :description :updated_at :initial_sync_status])
 
-(defmethod columns-for-model "pulse"
-  [_]
-  [:id :name :collection_id
-   [:collection_app.id :collection_app_id]
-   [:collection.name :collection_name]])
-
 (defmethod columns-for-model "collection"
   [_]
   (conj (remove #{:updated_at} default-columns)
         [:collection.id :collection_id]
         [:name :collection_name]
         [:authority_level :collection_authority_level]
-        [:app.id :app_id]
-        [:app.id :collection_app_id]
         bookmark-col))
 
 (defmethod columns-for-model "segment"
@@ -205,10 +220,3 @@
 (defmethod column->string :default
   [value _ _]
   value)
-
-(defmethod column->string [:card :dataset_query]
-  [value _ _]
-  (let [query (json/parse-string value true)]
-    (if (= "native" (:type query))
-      (-> query :native :query)
-      "")))

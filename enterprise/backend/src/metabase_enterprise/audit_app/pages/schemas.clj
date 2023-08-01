@@ -1,8 +1,9 @@
 (ns metabase-enterprise.audit-app.pages.schemas
-  (:require [metabase-enterprise.audit-app.interface :as audit.i]
-            [metabase-enterprise.audit-app.pages.common :as common]
-            [metabase.util.honeysql-extensions :as hx]
-            [schema.core :as s]))
+  (:require
+   [metabase-enterprise.audit-app.interface :as audit.i]
+   [metabase-enterprise.audit-app.pages.common :as common]
+   [metabase.util.honey-sql-2 :as h2x]
+   [metabase.util.malli :as mu]))
 
 ;; WITH counts AS (
 ;;     SELECT db."name" AS db_name, t."schema" AS db_schema
@@ -40,7 +41,7 @@
                                                 [:not= :qe.card_id nil]
                                                 [:not= :card.database_id nil]
                                                 [:not= :card.table_id nil]]}]]
-               :select   [[(hx/concat :db_name (hx/literal " ") :db_schema) :schema]
+               :select   [[(h2x/concat :db_name (h2x/literal " ") :db_schema) :schema]
                           [:%count.* :executions]]
                :from     [:counts]
                :group-by [:db_name :db_schema]
@@ -84,8 +85,8 @@
                                                 [:not= :qe.card_id nil]
                                                 [:not= :card.database_id nil]
                                                 [:not= :card.table_id nil]]}]]
-               :select   [[(hx/concat :db_name (hx/literal " ") :db_schema) :schema]
-                          [:%avg.running_time :avg_running_time]]
+               :select   [[(h2x/concat :db_name (h2x/literal " ") :db_schema) :schema]
+                          [[:avg :running_time] :avg_running_time]]
                :from     [:counts]
                :group-by [:db_name :db_schema]
                :order-by [[:avg_running_time :desc]]
@@ -117,10 +118,10 @@
 ;;
 ;; DEPRECATED Query that returns a data for a table full of fascinating information about the different schemas in use
 ;; in our application.
-(s/defmethod audit.i/internal-query ::table
+(mu/defmethod audit.i/internal-query ::table
   ([query-type]
    (audit.i/internal-query query-type nil))
-  ([_ query-string :- (s/maybe s/Str)]
+  ([_query-type query-string :- [:maybe :string]]
    {:metadata [[:database_id   {:display_name "Database ID",   :base_type :type/Integer, :remapped_to   :database}]
                [:database      {:display_name "Database",      :base_type :type/Title,   :remapped_from :database_id}]
                [:schema_id     {:display_name "Schema ID",     :base_type :type/Text,    :remapped_to   :schema}]
@@ -146,7 +147,7 @@
                                         :order-by  [[:db.id :asc] [:t.schema :asc]]}]]
                  :select    [:s.database_id
                              [:s.database_name :database]
-                             [(hx/concat :s.database_id (hx/literal ".") :s.schema) :schema_id]
+                             [(h2x/concat :s.database_id (h2x/literal ".") :s.schema) :schema_id]
                              :s.schema
                              :s.tables
                              [:c.saved_count :saved_queries]]

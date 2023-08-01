@@ -1,7 +1,6 @@
 import { t } from "ttag";
 import { combineReducers, handleActions } from "metabase/lib/redux";
 import Settings from "metabase/lib/settings";
-import { User } from "metabase-types/api";
 import {
   PLUGIN_ADMIN_ALLOWED_PATH_GETTERS,
   PLUGIN_ADMIN_NAV_ITEMS,
@@ -25,7 +24,7 @@ const getAdminPaths: () => AdminPath[] = () => {
       key: "databases",
     },
     {
-      name: t`Data Model`,
+      name: t`Table Metadata`,
       path: "/admin/datamodel",
       key: "data-model",
     },
@@ -42,13 +41,8 @@ const getAdminPaths: () => AdminPath[] = () => {
   ];
 
   const isModelPersistenceEnabled = Settings.get("persisted-models-enabled");
-  const hasLoadedSettings = typeof isModelPersistenceEnabled === "boolean";
 
-  if (
-    !hasLoadedSettings ||
-    isModelPersistenceEnabled ||
-    PLUGIN_ADMIN_TOOLS.EXTRA_ROUTES.length > 0
-  ) {
+  if (isModelPersistenceEnabled || PLUGIN_ADMIN_TOOLS.EXTRA_ROUTES.length > 0) {
     items.push({
       name: t`Tools`,
       path: "/admin/tools",
@@ -103,6 +97,7 @@ const isNoticeEnabled = handleActions(
   Settings.deprecationNoticeEnabled(),
 );
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default combineReducers({
   isNoticeEnabled,
   paths,

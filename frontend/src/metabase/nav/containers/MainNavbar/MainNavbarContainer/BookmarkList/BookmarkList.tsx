@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { t } from "ttag";
 import { connect } from "react-redux";
 
@@ -7,12 +7,12 @@ import {
   SortableElement,
 } from "metabase/components/sortable";
 import CollapseSection from "metabase/components/CollapseSection";
-import Icon from "metabase/components/Icon";
-import Tooltip from "metabase/components/Tooltip";
+import { Icon } from "metabase/core/components/Icon";
+import Tooltip from "metabase/core/components/Tooltip";
 
 import { Bookmark } from "metabase-types/api";
 import { PLUGIN_COLLECTIONS } from "metabase/plugins";
-import Bookmarks, { isDataAppBookmark } from "metabase/entities/bookmarks";
+import Bookmarks from "metabase/entities/bookmarks";
 import * as Urls from "metabase/lib/urls";
 
 import { SelectedItem } from "../../types";
@@ -54,11 +54,6 @@ const BOOKMARKS_INITIALLY_VISIBLE =
 function isBookmarkSelected(bookmark: Bookmark, selectedItem?: SelectedItem) {
   if (!selectedItem) {
     return false;
-  }
-  if (isDataAppBookmark(bookmark)) {
-    return (
-      selectedItem.type === "data-app" && selectedItem.id === bookmark.app_id
-    );
   }
   return (
     bookmark.type === selectedItem.type && bookmark.item_id === selectedItem.id
@@ -176,4 +171,5 @@ const Item = ({ children }: { children: JSX.Element }) => <>{children}</>;
 const SortableBookmarkItem = SortableElement(Item);
 const SortableBookmarkList = SortableContainer(List);
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default connect(null, mapDispatchToProps)(BookmarkList);

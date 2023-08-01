@@ -1,14 +1,18 @@
 (ns metabase.driver.util-test
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str]
-            [clojure.test :refer :all]
-            [metabase.driver.util :as driver.u]
-            [metabase.public-settings.premium-features :as premium-features]
-            [metabase.test :as mt]
-            [metabase.test.fixtures :as fixtures])
-  (:import java.nio.charset.StandardCharsets
-           java.util.Base64
-           javax.net.ssl.SSLSocketFactory))
+  (:require
+   [clojure.java.io :as io]
+   [clojure.string :as str]
+   [clojure.test :refer :all]
+   [metabase.driver.util :as driver.u]
+   [metabase.public-settings.premium-features :as premium-features]
+   [metabase.test :as mt]
+   [metabase.test.fixtures :as fixtures])
+  (:import
+   (java.nio.charset StandardCharsets)
+   (java.util Base64)
+   (javax.net.ssl SSLSocketFactory)))
+
+(set! *warn-on-reflection* true)
 
 (use-fixtures :once (fixtures/initialize :plugins :test-drivers))
 
@@ -183,15 +187,15 @@
              :type         "select"}
             {:name        "my-schema-filters-patterns"
              :placeholder "E.x. public,auth*"
-             :description "Comma separated names of schemas that <strong>should</strong> appear in Metabase"
-             :helper-text "You can use patterns like <strong>auth*</strong> to match multiple schemas"
+             :description "Comma separated names of schemas that should appear in Metabase"
+             :helper-text "You can use patterns like \"auth*\" to match multiple schemas"
              :type        "text"
              :visible-if  {:my-schema-filters-type "inclusion"}
              :required    true}
             {:name        "my-schema-filters-patterns"
              :placeholder "E.x. public,auth*"
-             :description "Comma separated names of schemas that <strong>should NOT</strong> appear in Metabase"
-             :helper-text "You can use patterns like <strong>auth*</strong> to match multiple schemas"
+             :description "Comma separated names of schemas that should NOT appear in Metabase"
+             :helper-text "You can use patterns like \"auth*\" to match multiple schemas"
              :type        "text"
              :visible-if  {:my-schema-filters-type "exclusion"}
              :required    true}
@@ -222,7 +226,8 @@
                       :keystore-options        "uploaded"
                       ;; because treat-before-posting is base64 in the config for this property, simulate that happening
                       :keystore-value          (->> (.getBytes ks-val StandardCharsets/UTF_8)
-                                                    (.encodeToString (Base64/getEncoder)))
+                                                    (.encodeToString (Base64/getEncoder))
+                                                    (str "data:application/octet-stream;base64,"))
                       :keystore-password-value "my-keystore-pw"}
           transformed (driver.u/db-details-client->server :secret-test-driver db-details)]
       ;; compare all fields except `:keystore-value` as a single map
@@ -233,3 +238,25 @@
              (select-keys transformed [:host :password-value :keystore-password-value :use-keystore])))
       ;; the keystore-value should have been base64 decoded because of treat-before-posting being base64 (see above)
       (is (mt/secret-value-equals? ks-val (:keystore-value transformed))))))
+
+(deftest decode-uploaded-test
+  (are [expected base64] (= expected (String. (driver.u/decode-uploaded base64) "UTF-8"))
+    "hi" "aGk="
+    "hi" "data:application/octet-stream;base64,aGk="))
+
+(deftest semantic-version-gte-test
+  (testing "semantic-version-gte works as expected"
+    (is (true? (driver.u/semantic-version-gte [5 0] [4 0])))
+    (is (true? (driver.u/semantic-version-gte [5 0 1] [4 0])))
+    (is (true? (driver.u/semantic-version-gte [5 0] [4 0 1])))
+    (is (true? (driver.u/semantic-version-gte [5 0] [4 1])))
+    (is (true? (driver.u/semantic-version-gte [4 1] [4 1])))
+    (is (true? (driver.u/semantic-version-gte [4 1] [4])))
+    (is (true? (driver.u/semantic-version-gte [4] [4])))
+    (is (true? (driver.u/semantic-version-gte [4] [4 0 0])))
+    (is (false? (driver.u/semantic-version-gte [3] [4])))
+    (is (false? (driver.u/semantic-version-gte [4] [4 1])))
+    (is (false? (driver.u/semantic-version-gte [4 0] [4 0 1])))
+    (is (false? (driver.u/semantic-version-gte [4 0 1] [4 1])))
+    (is (false? (driver.u/semantic-version-gte [3 9] [4 0])))
+    (is (false? (driver.u/semantic-version-gte [3 1] [4])))))

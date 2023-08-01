@@ -1,5 +1,4 @@
 import styled from "@emotion/styled";
-import InputBlurChange from "metabase/components/InputBlurChange";
 import { color } from "metabase/lib/colors";
 import ParameterValueWidget from "metabase/parameters/components/ParameterValueWidget";
 
@@ -16,9 +15,12 @@ export const TagName = styled.h3`
 `;
 
 interface ContainerLabelProps {
-  paddingTop: boolean;
+  paddingTop?: boolean;
 }
-export const ContainerLabel = styled.h4<ContainerLabelProps>`
+
+export const ContainerLabel = styled.div<ContainerLabelProps>`
+  display: block;
+  font-weight: 700;
   padding-bottom: 0.5rem;
   color: ${color("text-medium")};
   padding-top: ${props => (props.paddingTop ? "0.5rem" : "0")};
@@ -30,20 +32,11 @@ export const ErrorSpan = styled.span`
 `;
 
 interface InputContainerProps {
-  lessBottomPadding: boolean;
+  lessBottomPadding?: boolean;
 }
-export const InputContainer = styled.div<InputContainerProps>`
+export const InputContainer = styled.label<InputContainerProps>`
+  display: block;
   padding-bottom: ${props => (props.lessBottomPadding ? "1.5rem" : "2rem")};
-`;
-
-export const WidgetLabelInput = styled(InputBlurChange)`
-  font-weight: 700;
-  padding: 0.5rem;
-  border: 1px solid ${color("border-dark")};
-  border-radius: 0.5rem;
-  width: 100%;
-  color: ${color("text-dark")};
-  font-size: 0.875rem;
 `;
 
 export const DefaultParameterValueWidget = styled(ParameterValueWidget)`

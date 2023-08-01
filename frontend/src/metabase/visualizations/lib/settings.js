@@ -1,6 +1,6 @@
-/* eslint-disable react/prop-types */
 import { getIn } from "icepick";
 
+import _ from "underscore";
 import ChartSettingInput from "metabase/visualizations/components/settings/ChartSettingInput";
 import ChartSettingInputGroup from "metabase/visualizations/components/settings/ChartSettingInputGroup";
 import ChartSettingInputNumeric from "metabase/visualizations/components/settings/ChartSettingInputNumeric";
@@ -128,7 +128,11 @@ function getSettingWidget(
     for (const settingId of settingDef.writeDependencies || []) {
       newSettings[settingId] = computedSettings[settingId];
     }
+    for (const settingId of settingDef.eraseDependencies || []) {
+      newSettings[settingId] = null;
+    }
     onChangeSettings(newSettings);
+    settingDef.onUpdate?.(value, extra);
   };
   if (settingDef.useRawSeries && object._raw) {
     extra.transformedSeries = object;
@@ -272,4 +276,27 @@ function getColumnClickBehavior(columnSettings) {
         },
       };
     }, null);
+}
+
+const KEYS_TO_COMPARE = new Set([
+  "number_style",
+  "currency",
+  "currency_style",
+  "number_separators",
+  "decimals",
+  "scale",
+  "prefix",
+  "suffix",
+]);
+
+export function getLineAreaBarComparisonSettings(columnSettings) {
+  return _.pick(columnSettings, (value, key) => {
+    if (!KEYS_TO_COMPARE.has(key)) {
+      return false;
+    }
+    if ((key === "prefix" || key === "suffix") && value === "") {
+      return false;
+    }
+    return true;
+  });
 }

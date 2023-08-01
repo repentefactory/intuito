@@ -1,14 +1,16 @@
 (ns metabase.models.timeline-test
   "Tests for the Timeline model."
-  (:require [clojure.test :refer :all]
-            [metabase.models.collection :refer [Collection]]
-            [metabase.models.timeline :as timeline :refer [Timeline]]
-            [metabase.models.timeline-event :refer [TimelineEvent]]
-            [metabase.test :as mt]
-            [metabase.util :as u]))
+  (:require
+   [clojure.test :refer :all]
+   [metabase.models.collection :refer [Collection]]
+   [metabase.models.timeline :as timeline :refer [Timeline]]
+   [metabase.models.timeline-event :refer [TimelineEvent]]
+   [metabase.test :as mt]
+   [metabase.util :as u]
+   [toucan2.tools.with-temp :as t2.with-temp]))
 
 (deftest timelines-for-collection-test
-  (mt/with-temp Collection [collection {:name "Rasta's Collection"}]
+  (t2.with-temp/with-temp [Collection collection {:name "Rasta's Collection"}]
     (let [coll-id  (u/the-id collection)
           event-names (fn [timelines]
                         (into #{} (comp (mapcat :events) (map :name)) timelines))]

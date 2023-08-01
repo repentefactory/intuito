@@ -1,9 +1,7 @@
-import React from "react";
-
 import moment from "moment-timezone";
 import { has24HourModeSetting } from "metabase/lib/time";
 import NumericInput from "metabase/components/NumericInput";
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 
 import { AmPmLabel } from "./HoursMinutesInput.styled";
 
@@ -28,7 +26,6 @@ const HoursMinutesInput = ({
 }: Props) => (
   <div className="flex align-center">
     <NumericInput
-      className="input"
       style={{ height: 36 }}
       size={2}
       maxLength={2}
@@ -47,7 +44,6 @@ const HoursMinutesInput = ({
     />
     <span className="px1">:</span>
     <NumericInput
-      className="input"
       style={{ height: 36 }}
       size={2}
       maxLength={2}
@@ -56,18 +52,21 @@ const HoursMinutesInput = ({
     />
     {!is24HourMode && (
       <div className="flex align-center pl1">
-        <AmPmLabel
-          isSelected={hours < 12}
-          onClick={hours >= 12 ? () => onChangeHours(hours - 12) : undefined}
-        >
-          {moment.localeData().meridiem(0, 0, false)}
-        </AmPmLabel>
-        <AmPmLabel
-          isSelected={hours >= 12}
-          onClick={hours < 12 ? () => onChangeHours(hours + 12) : undefined}
-        >
-          {moment.localeData().meridiem(12, 0, false)}
-        </AmPmLabel>
+        {hours < 12 ? (
+          <AmPmLabel
+            isSelected={hours < 12}
+            onClick={() => onChangeHours(hours + 12)}
+          >
+            {moment.localeData().meridiem(0, 0, false)}
+          </AmPmLabel>
+        ) : (
+          <AmPmLabel
+            isSelected={hours >= 12}
+            onClick={() => onChangeHours(hours - 12)}
+          >
+            {moment.localeData().meridiem(12, 0, false)}
+          </AmPmLabel>
+        )}
       </div>
     )}
     {onClear && (
@@ -80,4 +79,5 @@ const HoursMinutesInput = ({
   </div>
 );
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default HoursMinutesInput;

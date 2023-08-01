@@ -1,57 +1,49 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-
-import { metadata } from "__support__/sample_database_fixture";
-
-import Field from "metabase-lib/metadata/Field";
+import { createMockMetadata } from "__support__/metadata";
+import { checkNotNull } from "metabase/core/utils/types";
+import { createMockField } from "metabase-types/api/mocks";
+import {
+  createSampleDatabase,
+  createSavedStructuredCard,
+} from "metabase-types/api/mocks/presets";
 import Filter from "metabase-lib/queries/structured/Filter";
-import Question from "metabase-lib/Question";
+import type StructuredQuery from "metabase-lib/queries/StructuredQuery";
 
 import { InlineDatePicker } from "./InlineDatePicker";
 
-const dateField = new Field({
-  database_type: "test",
-  base_type: "type/DateTime",
-  semantic_type: "type/DateTime",
-  effective_type: "type/DateTime",
-  table_id: 8,
-  name: "date_field",
-  has_field_values: "none",
-  values: [],
-  dimensions: {},
-  dimension_options: [],
-  id: 138,
-  metadata,
-});
-
-metadata.fields[dateField.id] = dateField;
-
-const card = {
-  dataset_query: {
-    database: 5,
-    query: {
-      "source-table": 8,
-    },
-    type: "query",
-  },
-  display: "table",
-  visualization_settings: {},
-};
-
-const question = new Question(card, metadata);
-const dateDimension = dateField.dimension();
-const query = question.query();
-
-const newFilter = new Filter(
-  [null, ["field", dateField.id, null]],
-  null,
-  question.query(),
-);
+const DATE_FIELD_ID = 200;
 
 describe("InlineDatePicker", () => {
+  const card = createSavedStructuredCard();
+
+  const metadata = createMockMetadata({
+    databases: [createSampleDatabase()],
+    fields: [
+      createMockField({
+        id: DATE_FIELD_ID,
+        base_type: "type/DateTime",
+        effective_type: "type/DateTime",
+        semantic_type: "type/DateTime",
+        has_field_values: "none",
+      }),
+    ],
+    questions: [card],
+  });
+
+  const question = checkNotNull(metadata.question(card.id));
+
+  const dateField = checkNotNull(metadata.field(DATE_FIELD_ID));
+  const dateDimension = dateField.dimension();
+
+  const query = question.query() as StructuredQuery;
+
+  const newFilter = new Filter(
+    [null, ["field", dateField.id, null]],
+    null,
+    query,
+  );
+
   it("renders an inline date picker with shortcut buttons", () => {
     const changeSpy = jest.fn();
 
@@ -66,12 +58,12 @@ describe("InlineDatePicker", () => {
       />,
     );
 
-    screen.getByTestId("date-picker");
-    screen.getByText("Today");
-    screen.getByText("Yesterday");
-    screen.getByText("Last Week");
-    screen.getByText("Last Month");
-    screen.getByLabelText("more options");
+    expect(screen.getByTestId("date-picker")).toBeInTheDocument();
+    expect(screen.getByText("Today")).toBeInTheDocument();
+    expect(screen.getByText("Yesterday")).toBeInTheDocument();
+    expect(screen.getByText("Last Week")).toBeInTheDocument();
+    expect(screen.getByText("Last Month")).toBeInTheDocument();
+    expect(screen.getByLabelText("more options")).toBeInTheDocument();
   });
 
   it("populates an existing shortcut value", () => {
@@ -126,7 +118,9 @@ describe("InlineDatePicker", () => {
       />,
     );
 
-    screen.getByText("between November 5, 1605 November 5, 2005");
+    expect(
+      screen.getByText("between November 5, 1605 November 5, 2005"),
+    ).toBeInTheDocument();
   });
 
   it("populates a complex custom value", () => {
@@ -155,7 +149,9 @@ describe("InlineDatePicker", () => {
       />,
     );
 
-    screen.getByText("Previous 22 Days, starting 66 years ago");
+    expect(
+      screen.getByText("Previous 22 Days, starting 66 years ago"),
+    ).toBeInTheDocument();
   });
 
   it("adds a shortcut value", () => {
@@ -260,6 +256,7 @@ describe("InlineDatePicker", () => {
     expect(clearSpy).toHaveBeenCalledTimes(1);
   });
 
+  // eslint-disable-next-line jest/no-disabled-tests
   it.skip("adds a custom value", async () => {
     const changeSpy = jest.fn();
 
@@ -274,19 +271,17 @@ describe("InlineDatePicker", () => {
       />,
     );
 
-    screen.getByLabelText("more options").click();
-    await waitFor(() => screen.getByText("Relative dates..."));
-    screen.getByText("Relative dates...").click();
-    await waitFor(() => screen.getByTestId("relative-datetime-value"));
+    userEvent.click(screen.getByLabelText("more options"));
+    await screen.findByText("Relative dates...");
+    userEvent.click(screen.getByText("Relative dates..."));
+    await screen.findByTestId("relative-datetime-value");
 
     const input = screen.getByTestId("relative-datetime-value");
     userEvent.clear(input);
     userEvent.type(input, "88");
     // FIXME: for some reason this button never gets enabled
-    await waitFor(() =>
-      expect(screen.getByText("Add filter")).not.toBeDisabled(),
-    );
-    screen.getByText("Add filter").click();
+    await waitFor(() => expect(screen.getByText("Add filter")).toBeEnabled());
+    userEvent.click(screen.getByText("Add filter"));
     await waitFor(() => expect(changeSpy).toHaveBeenCalled());
 
     expect(changeSpy).toHaveBeenCalledWith([
@@ -297,6 +292,7 @@ describe("InlineDatePicker", () => {
     ]);
   });
 
+  // eslint-disable-next-line jest/no-disabled-tests
   it.skip("changes a custom value", async () => {
     const testFilter = new Filter(
       ["between", ["field", dateField.id, null], "1605-11-05", "2005-11-05"],
@@ -319,7 +315,7 @@ describe("InlineDatePicker", () => {
 
     const btn = screen.getByText("between November 5, 1605 November 5, 2005");
     userEvent.click(btn);
-    await waitFor(() => screen.getByDisplayValue("11/05/1605"));
+    await screen.findByDisplayValue("11/05/1605");
     const input = screen.getByDisplayValue("11/05/1605");
 
     userEvent.clear(input);
@@ -327,12 +323,12 @@ describe("InlineDatePicker", () => {
 
     // FIXME: for some reason this button never gets enabled
     await waitFor(() =>
-      expect(screen.getByText("Update filter")).not.toBeDisabled(),
+      expect(screen.getByText("Update filter")).toBeEnabled(),
     );
 
     screen.getByText("Update filter").click();
 
-    expect(changeSpy).toBeCalledWith([
+    expect(changeSpy).toHaveBeenCalledWith([
       "between",
       ["field", dateField.id, null],
       "1995-09-05",
@@ -363,7 +359,7 @@ describe("InlineDatePicker", () => {
 
     const clearBtn = screen.getByLabelText("close icon");
     userEvent.click(clearBtn);
-    expect(clearSpy).toBeCalledTimes(1);
-    expect(changeSpy).toBeCalledTimes(0);
+    expect(clearSpy).toHaveBeenCalledTimes(1);
+    expect(changeSpy).toHaveBeenCalledTimes(0);
   });
 });

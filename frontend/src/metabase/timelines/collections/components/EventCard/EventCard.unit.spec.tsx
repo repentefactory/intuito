@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -103,7 +102,7 @@ describe("EventCard", () => {
   });
 });
 
-export const getProps = (opts?: Partial<EventCardProps>): EventCardProps => ({
+const getProps = (opts?: Partial<EventCardProps>): EventCardProps => ({
   event: createMockTimelineEvent(),
   timeline: createMockTimeline(),
   onArchive: jest.fn(),

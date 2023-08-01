@@ -1,12 +1,18 @@
-import React from "react";
 import { t } from "ttag";
 
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 
 import { getVisualizationRaw } from "metabase/visualizations";
 
-import { Dashboard, VisualizationSettings } from "metabase-types/api";
-import { Series } from "metabase-types/types/Visualization";
+import type {
+  Dashboard,
+  DashboardOrderedCard,
+  Series,
+  VisualizationSettings,
+} from "metabase-types/api";
+
+import { isActionDashCard } from "metabase/actions/utils";
+import { isLinkDashCard } from "metabase/dashboard/utils";
 
 import DashCardActionButton from "./DashCardActionButton";
 
@@ -14,10 +20,13 @@ import AddSeriesButton from "./AddSeriesButton";
 import ChartSettingsButton from "./ChartSettingsButton";
 
 import { DashCardActionButtonsContainer } from "./DashCardActionButtons.styled";
+import ActionSettingsButton from "./ActionSettingsButton";
+import LinkCardEditButton from "./LinkCardEditButton";
 
 interface Props {
   series: Series;
   dashboard: Dashboard;
+  dashcard?: DashboardOrderedCard;
   isLoading: boolean;
   isVirtualDashCard: boolean;
   isPreviewing: boolean;
@@ -25,6 +34,9 @@ interface Props {
   onRemove: () => void;
   onAddSeries: () => void;
   onReplaceAllVisualizationSettings: (settings: VisualizationSettings) => void;
+  onUpdateVisualizationSettings: (
+    settings: Partial<VisualizationSettings>,
+  ) => void;
   showClickBehaviorSidebar: () => void;
   onPreviewToggle: () => void;
 }
@@ -32,6 +44,7 @@ interface Props {
 function DashCardActionButtons({
   series,
   dashboard,
+  dashcard,
   isLoading,
   isVirtualDashCard,
   isPreviewing,
@@ -39,11 +52,16 @@ function DashCardActionButtons({
   onRemove,
   onAddSeries,
   onReplaceAllVisualizationSettings,
+  onUpdateVisualizationSettings,
   showClickBehaviorSidebar,
   onPreviewToggle,
 }: Props) {
-  const { disableSettingsConfig, supportPreviewing, supportsSeries } =
-    getVisualizationRaw(series).visualization;
+  const {
+    disableSettingsConfig,
+    supportPreviewing,
+    supportsSeries,
+    disableClickBehavior,
+  } = getVisualizationRaw(series).visualization;
 
   const buttons = [];
 
@@ -52,6 +70,7 @@ function DashCardActionButtons({
       <DashCardActionButton
         onClick={onPreviewToggle}
         tooltip={isPreviewing ? t`Edit` : t`Preview`}
+        aria-label={isPreviewing ? t`Edit card` : t`Preview card`}
         analyticsEvent="Dashboard;Text;edit"
       >
         {isPreviewing ? (
@@ -70,12 +89,13 @@ function DashCardActionButtons({
           key="chart-settings-button"
           series={series}
           dashboard={dashboard}
+          dashcard={dashcard}
           onReplaceAllVisualizationSettings={onReplaceAllVisualizationSettings}
         />,
       );
     }
 
-    if (!isVirtualDashCard) {
+    if (!isVirtualDashCard && !disableClickBehavior) {
       buttons.push(
         <DashCardActionButton
           key="click-behavior-tooltip"
@@ -97,6 +117,26 @@ function DashCardActionButtons({
         />,
       );
     }
+
+    if (dashcard && isActionDashCard(dashcard)) {
+      buttons.push(
+        <ActionSettingsButton
+          key="action-settings-button"
+          dashboard={dashboard}
+          dashcard={dashcard}
+        />,
+      );
+    }
+
+    if (dashcard && isLinkDashCard(dashcard)) {
+      buttons.push(
+        <LinkCardEditButton
+          key="link-edit-button"
+          dashcard={dashcard}
+          onUpdateVisualizationSettings={onUpdateVisualizationSettings}
+        />,
+      );
+    }
   }
 
   return (
@@ -113,4 +153,5 @@ function DashCardActionButtons({
   );
 }
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default DashCardActionButtons;

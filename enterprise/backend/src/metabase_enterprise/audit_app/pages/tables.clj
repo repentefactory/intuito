@@ -1,8 +1,9 @@
 (ns metabase-enterprise.audit-app.pages.tables
-  (:require [metabase-enterprise.audit-app.interface :as audit.i]
-            [metabase-enterprise.audit-app.pages.common :as common]
-            [metabase.util.honeysql-extensions :as hx]
-            [schema.core :as s]))
+  (:require
+   [metabase-enterprise.audit-app.interface :as audit.i]
+   [metabase-enterprise.audit-app.pages.common :as common]
+   [metabase.util.honey-sql-2 :as h2x]
+   [metabase.util.malli :as mu]))
 
 ;; WITH table_executions AS (
 ;;     SELECT t.id AS table_id, count(*) AS executions
@@ -33,7 +34,7 @@
                                           :order-by [[:%count.* asc-or-desc]]
                                           :limit    10}]]
                :select [:tx.table_id
-                        [(hx/concat :db.name (hx/literal " ") :t.schema (hx/literal " ") :t.name) :table_name]
+                        [(h2x/concat :db.name (h2x/literal " ") :t.schema (h2x/literal " ") :t.name) :table_name]
                         :tx.executions]
                :from [[:table_executions :tx]]
                :join [[:metabase_table :t]     [:= :tx.table_id :t.id]
@@ -51,10 +52,10 @@
   (query-counts :asc))
 
 ;; A table of Tables.
-(s/defmethod audit.i/internal-query ::table
+(mu/defmethod audit.i/internal-query ::table
   ([query-type]
    (audit.i/internal-query query-type nil))
-  ([_ query-string :- (s/maybe s/Str)]
+  ([_query-type query-string :- [:maybe :string]]
    {:metadata [[:database_id        {:display_name "Database ID",        :base_type :type/Integer, :remapped_to   :database_name}]
                [:database_name      {:display_name "Database",           :base_type :type/Text,    :remapped_from :database_id}]
                [:schema_id          {:display_name "Schema ID",          :base_type :type/Text,   :remapped_to   :schema_name}]
@@ -66,15 +67,15 @@
               (->
                {:select   [[:db.id :database_id]
                            [:db.name :database_name]
-                           [(hx/concat :db.id (hx/literal ".") :t.schema) :schema_id]
+                           [(h2x/concat :db.id (h2x/literal ".") :t.schema) :schema_id]
                            [:t.schema :table_schema]
                            [:t.id :table_id]
                            [:t.name :table_name]
                            [:t.display_name :table_display_name]]
                 :from     [[:metabase_table :t]]
                 :join     [[:metabase_database :db] [:= :t.db_id :db.id]]
-                :order-by [[:%lower.db.name  :asc]
-                           [:%lower.t.schema :asc]
-                           [:%lower.t.name   :asc]]
+                :order-by [[[:lower :db.name]  :asc]
+                           [[:lower :t.schema] :asc]
+                           [[:lower :t.name]   :asc]]
                 :where    [:= :t.active true]}
                (common/add-search-clause query-string :db.name :t.schema :t.name :t.display_name)))}))

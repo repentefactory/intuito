@@ -1,7 +1,16 @@
 {
   "ignorePatterns": [
     {
-      "pattern": "^https://downloads.metabase.com"
+      "pattern": "^https?://admin.google.com"
+    },
+    {
+      "pattern": "^https?://downloads.metabase.com"
+    },
+    {
+      "pattern": "^https?://docs.cypress.io/"
+    },
+    {
+      "pattern": "^https?://twitter.com/"
     }
   ],
   "timeout": "180s",

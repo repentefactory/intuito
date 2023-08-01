@@ -3,12 +3,14 @@
   mostly so we can send people 'login from a new device' emails the first time they log in with a new browser. If this
   cookie is deleted, it's fine; the user will just get an email saying they logged in from a new device next time
   they log in."
-  (:require [java-time :as t]
-            [metabase.server.request.util :as request.u]
-            [metabase.util.schema :as su]
-            [ring.util.response :as response]
-            [schema.core :as s])
-  (:import java.util.UUID))
+  (:require
+   [java-time :as t]
+   [metabase.server.request.util :as request.u]
+   [metabase.util.schema :as su]
+   [ring.util.response :as response]
+   [schema.core :as s]))
+
+(set! *warn-on-reflection* true)
 
 (def ^:private browser-id-cookie-name "metabase.DEVICE")
 
@@ -36,7 +38,7 @@
   (fn [request respond raise]
     (if-let [browser-id (get-in request [:cookies browser-id-cookie-name :value])]
       (handler (assoc request :browser-id browser-id) respond raise)
-      (let [browser-id (str (UUID/randomUUID))]
+      (let [browser-id (str (random-uuid))]
         (handler
          (assoc request :browser-id browser-id)
          (fn [response]

@@ -1,5 +1,6 @@
-import React, { useMemo, useRef } from "react";
-import { Engine } from "metabase-types/api";
+import { useMemo } from "react";
+import { useFormikContext } from "formik";
+import { DatabaseData, Engine } from "metabase-types/api";
 import { getEngineOptions } from "../../utils/engine";
 import DatabaseEngineSelect from "./DatabaseEngineSelect";
 import DatabaseEngineWidget from "./DatabaseEngineWidget";
@@ -19,16 +20,16 @@ const DatabaseEngineField = ({
   isAdvanced,
   onChange,
 }: DatabaseEngineFieldProps): JSX.Element => {
-  const { current: isNew } = useRef(engineKey == null);
+  const { values } = useFormikContext<DatabaseData>();
 
   const options = useMemo(() => {
-    return getEngineOptions(engines, engineKey);
-  }, [engines, engineKey]);
+    return getEngineOptions(engines, engineKey, isAdvanced);
+  }, [engines, engineKey, isAdvanced]);
 
   return isAdvanced ? (
     <DatabaseEngineSelect
       options={options}
-      disabled={!isNew}
+      disabled={values.is_sample}
       onChange={onChange}
     />
   ) : (
@@ -41,4 +42,5 @@ const DatabaseEngineField = ({
   );
 };
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default DatabaseEngineField;

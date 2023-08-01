@@ -1,13 +1,14 @@
 (ns metabase.test.automagic-dashboards
   "Helper functions and macros for writing tests for automagic dashboards."
-  (:require [clojure.test :refer :all]
-            [metabase.mbql.normalize :as mbql.normalize]
-            [metabase.mbql.schema :as mbql.s]
-            [metabase.models :refer [Card Collection Dashboard DashboardCard]]
-            [metabase.test :as mt]
-            [metabase.util :as u]
-            [metabase.util.schema :as su]
-            [schema.core :as s]))
+  (:require
+   [clojure.test :refer :all]
+   [metabase.mbql.normalize :as mbql.normalize]
+   [metabase.mbql.schema :as mbql.s]
+   [metabase.models :refer [Card Collection Dashboard DashboardCard]]
+   [metabase.test :as mt]
+   [metabase.util :as u]
+   [metabase.util.schema :as su]
+   [schema.core :as s]))
 
 (defmacro with-dashboard-cleanup
   "Execute body and cleanup all dashboard elements created."
@@ -54,4 +55,6 @@
         (test-urls-are-valid dashboard))
       (testing "Dashboard's cards should be valid"
         (doseq [card (keep :card (:ordered_cards dashboard))]
-          (test-card-is-valid card))))))
+          (test-card-is-valid card)))
+      (testing "Dashboard should have `auto_apply_filters` set to true"
+        (is (true? (:auto_apply_filters dashboard)))))))

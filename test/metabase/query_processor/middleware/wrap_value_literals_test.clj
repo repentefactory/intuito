@@ -1,14 +1,16 @@
 (ns metabase.query-processor.middleware.wrap-value-literals-test
-  (:require [clojure.test :refer :all]
-            [java-time :as t]
-            [metabase.driver :as driver]
-            [metabase.query-processor.middleware.wrap-value-literals :as qp.wrap-value-literals]
-            [metabase.query-processor.timezone :as qp.timezone]
-            [metabase.test :as mt]))
+  (:require
+   [clojure.test :refer :all]
+   [java-time :as t]
+   [metabase.driver :as driver]
+   [metabase.query-processor.middleware.wrap-value-literals
+    :as qp.wrap-value-literals]
+   [metabase.query-processor.timezone :as qp.timezone]
+   [metabase.test :as mt]))
 
 (driver/register! ::tz-driver, :abstract? true)
 
-(defmethod driver/supports? [::tz-driver :set-timezone] [_ _] true)
+(defmethod driver/database-supports? [::tz-driver :set-timezone] [_driver _feature _db] true)
 
 (defn- wrap-value-literals
   {:style/indent 0}

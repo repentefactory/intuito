@@ -1,9 +1,7 @@
-import React, { useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
-import Icon from "metabase/components/Icon";
+import { Icon, IconName } from "metabase/core/components/Icon";
 import { color } from "metabase/lib/colors";
-
-import { isActionDashCard } from "metabase/writeback/utils";
 
 import type { DashboardOrderedCard, ClickBehavior } from "metabase-types/api";
 import type { UiParameter } from "metabase-lib/parameters/types";
@@ -15,7 +13,7 @@ import { BehaviorOptionIcon } from "./TypeSelector.styled";
 
 interface BehaviorOptionProps {
   option: string;
-  icon: string;
+  icon: IconName;
   hasNextStep: boolean;
   selected: boolean;
   disabled?: boolean;
@@ -67,11 +65,8 @@ function TypeSelector({
   moveToNextPage,
 }: TypeSelectorProps) {
   const options = useMemo(() => {
-    if (isActionDashCard(dashcard)) {
-      return clickBehaviorOptions;
-    }
     return clickBehaviorOptions.filter(option => option.value !== "action");
-  }, [dashcard]);
+  }, []);
 
   const handleSelect = useCallback(
     value => {
@@ -102,4 +97,5 @@ function TypeSelector({
   );
 }
 
+// eslint-disable-next-line import/no-default-export -- deprecated usage
 export default TypeSelector;

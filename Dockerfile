@@ -2,14 +2,23 @@
 # STAGE 1: builder
 ###################
 
-FROM metabase/ci:java-11-clj-1.11.0.1100.04-2022-build as builder
+FROM node:18-bullseye as builder
 
 ARG MB_EDITION=ee
 
-WORKDIR /home/circleci
+WORKDIR /home/node
 
-COPY --chown=circleci . .
-RUN INTERACTIVE=false CI=true MB_EDITION=$MB_EDITION bin/build
+RUN apt-get update && apt-get upgrade -y && apt-get install openjdk-11-jdk curl git -y \
+    && curl -O https://download.clojure.org/install/linux-install-1.11.1.1262.sh \
+    && chmod +x linux-install-1.11.1.1262.sh \
+    && ./linux-install-1.11.1.1262.sh
+
+COPY . .
+
+# version is pulled from git, but git doesn't trust the directory due to different owners
+RUN git config --global --add safe.directory /home/node
+
+RUN INTERACTIVE=false CI=true MB_EDITION=$MB_EDITION bin/build.sh
 
 # ###################
 # # STAGE 2: runner
@@ -35,7 +44,7 @@ RUN apk add -U bash ttf-dejavu fontconfig curl java-cacerts && \
     mkdir -p /plugins && chmod a+rwx /plugins
 
 # add Metabase script and uberjar
-COPY --from=builder /home/circleci/target/uberjar/metabase.jar /app/
+COPY --from=builder /home/node/target/uberjar/metabase.jar /app/
 COPY bin/docker/run_metabase.sh /app/
 
 # expose our default runtime port

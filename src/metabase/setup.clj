@@ -1,9 +1,14 @@
 (ns metabase.setup
-  (:require [environ.core :as env]
-            [metabase.models.setting :as setting :refer [defsetting Setting]]
-            [metabase.models.user :refer [User]]
-            [toucan.db :as db])
-  (:import java.util.UUID))
+  (:require
+   [environ.core :as env]
+   [metabase.config :as config]
+   [metabase.db.connection :as mdb.connection]
+   [metabase.models.setting :as setting :refer [defsetting Setting]]
+   [metabase.models.user :refer [User]]
+   [metabase.util.i18n :refer [deferred-tru tru]]
+   [toucan2.core :as t2]))
+
+(set! *warn-on-reflection* true)
 
 (defsetting setup-token
   "A token used to signify that an instance has permissions to create the initial User. This is created upon the first
@@ -28,19 +33,34 @@
   ;; value or setting DB values and the like
   (or (when-let [mb-setup-token (env/env :mb-setup-token)]
         (setting/set-value-of-type! :string :setup-token mb-setup-token))
-      (db/select-one-field :value Setting :key "setup-token")
-      (setting/set-value-of-type! :string :setup-token (str (UUID/randomUUID)))))
+      (t2/select-one-fn :value Setting :key "setup-token")
+      (setting/set-value-of-type! :string :setup-token (str (random-uuid)))))
 
 (defsetting has-user-setup
-  "A value that is true iff the metabase instance has one or more users registered."
+  (deferred-tru "A value that is true iff the metabase instance has one or more users registered.")
   :visibility :public
   :type       :boolean
-  :setter     :none
+  :setter     (fn [value]
+                (if (or config/is-dev? config/is-test?)
+                  (setting/set-value-of-type! :boolean :has-user-setup value)
+                  (throw (ex-info (tru "Cannot set `has-user-setup`.")
+                                  {:value value}))))
   ;; Once a User is created it's impossible for this to ever become falsey -- deleting the last User is disallowed.
   ;; After this returns true once the result is cached and it will continue to return true forever without any
   ;; additional DB hits.
-  :getter     (fn []
-                (let [user-exists? (atom false)]
-                  (or @user-exists?
-                      (reset! user-exists? (db/exists? User)))))
+  ;;
+  ;; This is keyed by the unique identifier for the application database, to support resetting it in tests or swapping
+  ;; it out in the REPL
+  :getter     (let [app-db-id->user-exists? (atom {})]
+                (fn []
+                  (let [possible-override (when (or config/is-dev? config/is-test?)
+                                            ;; allow for overriding in dev and test
+                                            (setting/get-value-of-type :boolean :has-user-setup))]
+                    ;; override could be false so have to check non-nil
+                    (if (some? possible-override)
+                      possible-override
+                      (or (get @app-db-id->user-exists? (mdb.connection/unique-identifier))
+                          (let [exists? (t2/exists? User)]
+                            (swap! app-db-id->user-exists? assoc (mdb.connection/unique-identifier) exists?)
+                            exists?))))))
   :doc        false)

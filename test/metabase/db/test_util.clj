@@ -1,9 +1,12 @@
 (ns metabase.db.test-util
-  (:require [clojure.java.jdbc :as jdbc]
-            [clojure.test :refer :all]
-            [metabase.test :as mt]
-            [potemkin :as p]
-            [pretty.core :as pretty]))
+  (:require
+   [clojure.java.jdbc :as jdbc]
+   [clojure.test :refer :all]
+   [metabase.test.util.random :as tu.random]
+   [potemkin :as p]
+   [pretty.core :as pretty]))
+
+(set! *warn-on-reflection* true)
 
 (p/deftype+ ClojureJDBCSpecDataSource [jdbc-spec]
   pretty/PrettyPrintable
@@ -12,6 +15,7 @@
 
   javax.sql.DataSource
   (getConnection [_]
+    #_{:clj-kondo/ignore [:discouraged-var]}
     (jdbc/get-connection jdbc-spec))
 
   (getConnection [_ _user _password]
@@ -30,7 +34,7 @@
 (deftest jdbc-spec-test
   (let [data-source (->ClojureJDBCSpecDataSource
                      {:subprotocol "h2"
-                      :subname     (format "mem:%s" (mt/random-name))
+                      :subname     (format "mem:%s" (tu.random/random-name))
                       :classname   "org.h2.Driver"})]
     (with-open [conn (.getConnection data-source)]
       (is (= [{:one 1}]

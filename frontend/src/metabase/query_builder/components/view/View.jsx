@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React from "react";
+import { Component } from "react";
 import { Motion, spring } from "react-motion";
 import _ from "underscore";
 import { t } from "ttag";
@@ -11,6 +11,7 @@ import { SIDEBAR_SIZES } from "metabase/query_builder/constants";
 import LoadingAndErrorWrapper from "metabase/components/LoadingAndErrorWrapper";
 import Toaster from "metabase/components/Toaster";
 
+import * as Lib from "metabase-lib";
 import NativeQuery from "metabase-lib/queries/NativeQuery";
 import StructuredQuery from "metabase-lib/queries/StructuredQuery";
 
@@ -21,13 +22,13 @@ import NativeQueryEditor from "../NativeQueryEditor";
 import QueryVisualization from "../QueryVisualization";
 import DataReference from "../dataref/DataReference";
 import TagEditorSidebar from "../template_tags/TagEditorSidebar";
-import SnippetSidebar from "../template_tags/SnippetSidebar";
+import { SnippetSidebar } from "../template_tags/SnippetSidebar";
 import SavedQuestionIntroModal from "../SavedQuestionIntroModal";
 import QueryModals from "../QueryModals";
 
 import ChartSettingsSidebar from "./sidebars/ChartSettingsSidebar";
 import ChartTypeSidebar from "./sidebars/ChartTypeSidebar";
-import SummarizeSidebar from "./sidebars/SummarizeSidebar/SummarizeSidebar";
+import { SummarizeSidebar } from "./sidebars/SummarizeSidebar";
 import { QuestionInfoSidebar } from "./sidebars/QuestionInfoSidebar";
 import TimelineSidebar from "./sidebars/TimelineSidebar";
 
@@ -55,7 +56,7 @@ const DEFAULT_POPOVER_STATE = {
   breakoutPopoverTarget: null,
 };
 
-class View extends React.Component {
+class View extends Component {
   state = {
     ...DEFAULT_POPOVER_STATE,
   };
@@ -147,17 +148,15 @@ class View extends React.Component {
     const {
       question,
       timelines,
-      isResultDirty,
       isShowingSummarySidebar,
       isShowingTimelineSidebar,
       isShowingQuestionInfoSidebar,
-      runQuestionQuery,
       updateQuestion,
-      visibleTimelineIds,
+      visibleTimelineEventIds,
       selectedTimelineEventIds,
       xDomain,
-      showTimelines,
-      hideTimelines,
+      showTimelineEvents,
+      hideTimelineEvents,
       selectTimelineEvents,
       deselectTimelineEvents,
       onOpenModal,
@@ -169,13 +168,18 @@ class View extends React.Component {
     const isSaved = question.isSaved();
 
     if (isShowingSummarySidebar) {
+      const query = question._getMLv2Query();
+      const legacyQuery = question.query();
       return (
         <SummarizeSidebar
-          question={question}
+          query={query}
+          legacyQuery={legacyQuery}
+          onQueryChange={nextQuery => {
+            const datesetQuery = Lib.toLegacyQuery(nextQuery);
+            const nextQuestion = question.setDatasetQuery(datesetQuery);
+            updateQuestion(nextQuestion.setDefaultDisplay(), { run: true });
+          }}
           onClose={onCloseSummary}
-          isResultDirty={isResultDirty}
-          runQuestionQuery={runQuestionQuery}
-          updateQuestion={updateQuestion}
         />
       );
     }
@@ -185,11 +189,11 @@ class View extends React.Component {
         <TimelineSidebar
           question={question}
           timelines={timelines}
-          visibleTimelineIds={visibleTimelineIds}
+          visibleTimelineEventIds={visibleTimelineEventIds}
           selectedTimelineEventIds={selectedTimelineEventIds}
           xDomain={xDomain}
-          onShowTimelines={showTimelines}
-          onHideTimelines={hideTimelines}
+          onShowTimelineEvents={showTimelineEvents}
+          onHideTimelineEvents={hideTimelineEvents}
           onSelectTimelineEvents={selectTimelineEvents}
           onDeselectTimelineEvents={deselectTimelineEvents}
           onOpenModal={onOpenModal}
@@ -215,8 +219,9 @@ class View extends React.Component {
       toggleTemplateTagsEditor,
       toggleDataReference,
       toggleSnippetSidebar,
-      showTimelines,
-      hideTimelines,
+      showTimelineEvent,
+      showTimelineEvents,
+      hideTimelineEvents,
       selectTimelineEvents,
       deselectTimelineEvents,
       onCloseTimelines,
@@ -242,8 +247,9 @@ class View extends React.Component {
       return (
         <TimelineSidebar
           {...this.props}
-          onShowTimelines={showTimelines}
-          onHideTimelines={hideTimelines}
+          onShowTimelineEvent={showTimelineEvent}
+          onShowTimelineEvents={showTimelineEvents}
+          onHideTimelineEvents={hideTimelineEvents}
           onSelectTimelineEvents={selectTimelineEvents}
           onDeselectTimelineEvents={deselectTimelineEvents}
           onClose={onCloseTimelines}
@@ -294,7 +300,8 @@ class View extends React.Component {
   };
 
   renderNativeQueryEditor = () => {
-    const { question, query, card, height, isDirty } = this.props;
+    const { question, query, card, height, isDirty, isNativeEditorOpen } =
+      this.props;
 
     // Normally, when users open native models,
     // they open an ad-hoc GUI question using the model as a data source
@@ -312,7 +319,8 @@ class View extends React.Component {
         <NativeQueryEditor
           {...this.props}
           viewHeight={height}
-          isOpen={!card.dataset_query.native.query || isDirty}
+          isOpen={query.isEmpty() || isDirty}
+          isInitiallyOpen={isNativeEditorOpen}
           datasetQuery={card && card.dataset_query}
         />
       </NativeQueryEditorContainer>
@@ -343,7 +351,10 @@ class View extends React.Component {
     const isSidebarOpen = leftSidebar || rightSidebar;
 
     return (
-      <QueryBuilderMain isSidebarOpen={isSidebarOpen}>
+      <QueryBuilderMain
+        isSidebarOpen={isSidebarOpen}
+        data-testid="query-builder-main"
+      >
         {isNative ? (
           this.renderNativeQueryEditor()
         ) : (
@@ -424,7 +435,6 @@ class View extends React.Component {
     const {
       question,
       query,
-      card,
       databases,
       isShowingNewbModal,
       isShowingTimelineSidebar,
@@ -437,8 +447,8 @@ class View extends React.Component {
       updateQuestion,
     } = this.props;
 
-    // if we don't have a card at all or no databases then we are initializing, so keep it simple
-    if (!card || !databases) {
+    // if we don't have a question at all or no databases then we are initializing, so keep it simple
+    if (!question || !databases) {
       return <LoadingAndErrorWrapper className="full-height" loading />;
     }
 
@@ -457,7 +467,7 @@ class View extends React.Component {
       );
     }
 
-    if (card.dataset && queryBuilderMode === "dataset") {
+    if (question.isDataset() && queryBuilderMode === "dataset") {
       return (
         <>
           <DatasetEditor {...this.props} />

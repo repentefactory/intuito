@@ -1,15 +1,15 @@
 /* eslint-disable react/prop-types */
-import React from "react";
+import { createRef, Component } from "react";
 
 import cx from "classnames";
 import { t } from "ttag";
 
-import Icon from "metabase/components/Icon";
+import { Icon } from "metabase/core/components/Icon";
 import Popover from "metabase/components/Popover";
 
 import AlertListPopoverContent from "../AlertListPopoverContent";
 
-export default class QuestionAlertWidget extends React.Component {
+export default class QuestionAlertWidget extends Component {
   state = {
     isOpen: false,
     // this isFrozen nonsense is due to AlertListPopoverContent containing a <Modal>
@@ -24,6 +24,12 @@ export default class QuestionAlertWidget extends React.Component {
   freeze = () => {
     this.setState({ isFrozen: true });
   };
+
+  constructor(props, context) {
+    super(props, context);
+
+    this.rootRef = createRef();
+  }
 
   render() {
     const {
@@ -41,12 +47,13 @@ export default class QuestionAlertWidget extends React.Component {
 
     if (question.isSaved() && Object.values(questionAlerts).length > 0) {
       return (
-        <span onClick={this.open}>
+        <span onClick={this.open} ref={this.rootRef}>
           <Icon
             name="bell"
             className={cx(className, "text-brand cursor-pointer")}
           />
           <Popover
+            target={this.rootRef.current}
             isOpen={isOpen}
             className={isFrozen ? "hide" : null}
             onClose={this.close}
@@ -63,6 +70,7 @@ export default class QuestionAlertWidget extends React.Component {
         <Icon
           name="bell"
           tooltip={t`Get alerts`}
+          size={20}
           className={cx(className, "text-brand-hover cursor-pointer")}
           onClick={onCreateAlert}
         />

@@ -2,14 +2,19 @@
   "Middleware related to doing extra steps for queries that are ran via API endpoints (i.e., most of them -- as opposed
   to queries ran internally e.g. as part of the sync process).
   These include things like saving QueryExecutions and adding query ViewLogs, storing exceptions and formatting the results."
-  (:require [clojure.tools.logging :as log]
-            [java-time :as t]
-            [metabase.events :as events]
-            [metabase.models.query :as query]
-            [metabase.models.query-execution :as query-execution :refer [QueryExecution]]
-            [metabase.query-processor.util :as qp.util]
-            [metabase.util.i18n :refer [trs]]
-            [toucan.db :as db]))
+  (:require
+   [java-time :as t]
+   [metabase.events :as events]
+   [metabase.models.query :as query]
+   [metabase.models.query-execution
+    :as query-execution
+    :refer [QueryExecution]]
+   [metabase.query-processor.util :as qp.util]
+   [metabase.util.i18n :refer [trs]]
+   [metabase.util.log :as log]
+   [toucan2.core :as t2]))
+
+(set! *warn-on-reflection* true)
 
 (defn- add-running-time [{start-time-ms :start_time_millis, :as query-execution}]
   (-> query-execution
@@ -33,7 +38,7 @@
     (query/save-query-and-update-average-execution-time! query query-hash running-time))
   (if-not context
     (log/warn (trs "Cannot save QueryExecution, missing :context"))
-    (db/insert! QueryExecution (dissoc query-execution :json_query))))
+    (t2/insert! QueryExecution (dissoc query-execution :json_query))))
 
 (defn- save-query-execution!
   "Save a `QueryExecution` row containing `execution-info`. Done asynchronously when a query is finished."
@@ -69,7 +74,7 @@
   (merge
    (-> query-execution
        add-running-time
-       (dissoc :error :hash :executor_id :card_id :dashboard_id :pulse_id :result_rows :native))
+       (dissoc :error :hash :executor_id :action_id :card_id :dashboard_id :pulse_id :result_rows :native))
    result
    {:status                 :completed
     :average_execution_time (when cached?
@@ -89,6 +94,7 @@
          (events/publish-event! :card-query {:card_id      (:card_id execution-info)
                                              :actor_id     (:executor_id execution-info)
                                              :cached       (:cached acc)
+                                             :context      (:context execution-info)
                                              :ignore_cache (get-in execution-info [:json_query :middleware :ignore-cached-results?])}))
        (save-successful-query-execution! (:cached acc) execution-info @row-count)
        (rf (if (map? acc)
@@ -102,13 +108,14 @@
 (defn- query-execution-info
   "Return the info for the QueryExecution entry for this `query`."
   {:arglists '([query])}
-  [{{:keys [executed-by query-hash context card-id dashboard-id pulse-id]} :info
-    database-id                                                            :database
-    query-type                                                             :type
-    :as                                                                    query}]
+  [{{:keys [executed-by query-hash context action-id card-id dashboard-id pulse-id]} :info
+    database-id                                                                      :database
+    query-type                                                                       :type
+    :as                                                                              query}]
   {:pre [(instance? (Class/forName "[B") query-hash)]}
   {:database_id       database-id
    :executor_id       executed-by
+   :action_id         action-id
    :card_id           card-id
    :dashboard_id      dashboard-id
    :pulse_id          pulse-id
