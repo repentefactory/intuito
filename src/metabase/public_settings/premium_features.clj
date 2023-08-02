@@ -38,6 +38,10 @@
              (str/replace  #"/$" "")))
    "https://intuito-status.s3.eu-west-1.amazonaws.com"))
 
+(def store-url
+  "Store URL, used as a fallback for token checks and for fetching the list of cloud gateway IPs."
+  "https://store.metabase.com")
+
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                                TOKEN VALIDATION                                                |
 ;;; +----------------------------------------------------------------------------------------------------------------+
